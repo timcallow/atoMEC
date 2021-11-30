@@ -14,6 +14,8 @@ Classes
 
 # import external packages
 from math import log, pi
+import numpy as np
+from scipy.interpolate import interp1d
 
 # import internal packages
 from . import check_inputs
@@ -547,3 +549,49 @@ class ISModel:
         print(pressurestat + spc)
 
         return pressureHa
+
+    @writeoutput.timing
+    def full_diag(
+        self,
+        nmax,
+        lmax,
+        potential,
+        grid_params={},
+    ):
+
+        # reset global parameters if they are changed
+        config.nmax = nmax
+        config.lmax = lmax
+        config.grid_params = check_inputs.EnergyCalcs.check_grid_params(grid_params)
+
+        # set up the xgrid and rgrid
+        xgrid, rgrid = staticKS.log_grid(log(config.r_s))
+        ngrid = np.size(xgrid)
+
+        # initialize orbitals
+        orbs = staticKS.Orbitals(xgrid)
+
+        # interpolate potential onto new grid
+        v_s = potential.v_s
+        spindims, ngrid_pot = np.shape(v_s)
+        xgrid_pot = potential._xgrid
+        ngrid_pot = np.size(xgrid_pot)
+        print(ngrid, ngrid_pot)
+
+        vs_new = np.zeros((spindims, ngrid))
+        if ngrid < ngrid_pot:
+            for sp in range(spindims):
+                vs_func = interp1d(xgrid_pot, v_s[sp], kind="cubic")
+                vs_new[sp] = vs_func(xgrid)
+        elif ngrid == ngrid_pot:
+            vs_new = v_s
+        else:
+            raise SystemExit(
+                "Full diagonalization cannot use more grid points than initial"
+            )
+        orbs.compute(vs_new, solver="full_diag")
+
+        # occupy orbitals
+        orbs.occupy()
+
+        return orbs

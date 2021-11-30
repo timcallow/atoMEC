@@ -342,7 +342,7 @@ def KS_matsolve_serial(T, B, v, xgrid, solve_type, eigs_min_guess):
                 )
 
                 eigfuncs[i, l], eigvals[i, l] = update_orbs(
-                    vecs_up, eigs_up, xgrid, config.bc
+                    vecs_up, eigs_up, xgrid, config.bc, config.nmax
                 )
 
             elif solve_type == "guess":
@@ -361,7 +361,7 @@ def KS_matsolve_serial(T, B, v, xgrid, solve_type, eigs_min_guess):
                 eigs_up, vecs_up = linalg.eig(H, b=B, check_finite=False)
 
                 eigfuncs[i, l], eigvals[i, l] = update_orbs(
-                    vecs_up, eigs_up, xgrid, config.bc
+                    vecs_up, eigs_up, xgrid, config.bc, config.nmax
                 )
 
     if solve_type == "sparse":
@@ -430,7 +430,7 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
         )
 
         # sort and normalize
-        evecs, evals = update_orbs(evecs, evals, xgrid, bc)
+        evecs, evals = update_orbs(evecs, evals, xgrid, bc, nmax)
 
         return evecs, evals
 
@@ -453,12 +453,12 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
         evals, evecs = linalg.eig(H, b=B, check_finite=False)
 
         # sort and normalize
-        evecs, evals = update_orbs(evecs, evals, xgrid, bc)
+        evecs, evals = update_orbs(evecs, evals, xgrid, bc, nmax)
 
         return evecs, evals
 
 
-def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc):
+def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, nmax):
     """
     Sort the eigenvalues and functions by ascending energies and normalize orbs.
 
@@ -487,6 +487,8 @@ def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc):
     if bc == "neumann":
         l_eigfuncs[-1] = l_eigfuncs[-2]
     eigfuncs = np.array(np.transpose(l_eigfuncs.real)[idr])
+    eigvals = eigvals[:nmax]
+    eigfuncs = eigfuncs[:nmax]
     eigfuncs = mathtools.normalize_orbs(eigfuncs, xgrid)  # normalize
 
     return eigfuncs, eigvals

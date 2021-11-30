@@ -153,7 +153,7 @@ class Orbitals:
             self._lunbound = self.make_lunbound(self.eigvals)
         return self._lunbound
 
-    def compute(self, potential, init=False, eig_guess=False):
+    def compute(self, potential, init=False, eig_guess=False, solver="sparse"):
         """
         Compute the orbitals and their eigenvalues with the given potential.
 
@@ -179,7 +179,7 @@ class Orbitals:
 
         # solve the KS equations
         self._eigfuncs, self._eigvals = numerov.matrix_solve(
-            v, self._xgrid, eigs_min_guess=self._eigs_min
+            v, self._xgrid, eigs_min_guess=self._eigs_min, solve_type=solver
         )
 
         # compute the lbound array
