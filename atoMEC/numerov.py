@@ -73,7 +73,7 @@ def calc_eigs_min(v, xgrid):
 
 
 # @writeoutput.timing
-def matrix_solve(v, xgrid, solve_type="full", eigs_min_guess=None):
+def matrix_solve(v, xgrid, solve_type="sparse", eigs_min_guess=None):
     r"""
     Solve the radial KS equation via matrix diagonalization of Numerov's method.
 
@@ -252,7 +252,7 @@ def KS_matsolve_parallel(T, B, v, xgrid, solve_type, eigs_min_guess):
     except:  # noqa
         print("Could not clean-up automatically.")
 
-    if solve_type == "full":
+    if solve_type == "sparse" or solve_type == "full_diag":
         # retrieve the eigfuncs and eigvals from the joblib output
         eigfuncs_flat = np.zeros((pmax, config.nmax, N))
         eigvals_flat = np.zeros((pmax, config.nmax))
@@ -331,7 +331,7 @@ def KS_matsolve_serial(T, B, v, xgrid, solve_type, eigs_min_guess):
             # we seek the lowest nmax eigenvalues from sparse matrix diagonalization
             # use 'shift-invert mode' to find the eigenvalues nearest in magnitude to
             # the estimated lowest eigenvalue from full diagonalization on coarse grid
-            if solve_type == "full":
+            if solve_type == "sparse":
                 eigs_up, vecs_up = eigs(
                     H,
                     k=config.nmax,
@@ -357,7 +357,16 @@ def KS_matsolve_serial(T, B, v, xgrid, solve_type, eigs_min_guess):
                 # dummy variable for the null eigenfucntions
                 eigfuncs_null = eigfuncs
 
-    if solve_type == "full":
+            elif solve_type == "full_diag":
+                eigs_up, vecs_up = linalg.eig(H, b=B, check_finite=False)
+
+                eigfuncs[i, l], eigvals[i, l] = update_orbs(
+                    vecs_up, eigs_up, xgrid, config.bc
+                )
+
+    if solve_type == "sparse":
+        return eigfuncs, eigvals
+    elif solve_type == "full_diag":
         return eigfuncs, eigvals
     else:
         return eigfuncs_null, eigs_guess
@@ -410,7 +419,7 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
     # we seek the lowest nmax eigenvalues from sparse matrix diagonalization
     # use 'shift-invert mode' to find the eigenvalues nearest in magnitude to
     # the estimated lowest eigenvalue from full diagonalization on coarse grid
-    if solve_type == "full":
+    if solve_type == "sparse":
         evals, evecs = eigs(
             H,
             k=nmax,
@@ -437,6 +446,16 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
         evecs_null = np.zeros((N))
 
         return evecs_null, evals
+
+    elif solve_type == "full_diag":
+
+        # full diagonalization
+        evals, evecs = linalg.eig(H, b=B, check_finite=False)
+
+        # sort and normalize
+        evecs, evals = update_orbs(evecs, evals, xgrid, bc)
+
+        return evecs, evals
 
 
 def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc):
