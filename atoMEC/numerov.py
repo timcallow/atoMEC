@@ -150,7 +150,7 @@ def matrix_solve(v, xgrid, solve_type="sparse", eigs_min_guess=None):
         A[N - 2, N - 1] = 2 * dx ** (-2)
         B[N - 2, N - 1] = 2 * B[N - 2, N - 1]
         A[N - 1, N - 1] = A[N - 1, N - 1] + 1.0 / dx
-        B[N - 1, N - 1] = B[N - 1, N - 1] + dx / 12.0
+        B[N - 1, N - 1] = B[N - 1, N - 1] - dx / 12.0
 
     # construct kinetic energy matrix
     T = -0.5 * p * A
@@ -372,12 +372,16 @@ def KS_matsolve_serial(T, B, v, xgrid, solve_type, eigs_min_guess):
                 eigfuncs_null = eigfuncs
 
             elif solve_type == "full_diag":
-                eigs_up, vecs_up = linalg.eig(H, b=B, check_finite=False)
+                eigs_up, vecs_up = linalg.eig(H_s, b=B_s, check_finite=False)
 
-                K = np.zeros((N, N))
-                for n in range(config.nmax):
+                # sort and normalize
+                N_s = np.shape(vecs_up)[0]
+                K = np.zeros((N_s, N_s))
+                for n in range(N_s):
                     K[:, n] = (
-                        -2 * np.exp(2 * xgrid) * (V_mat.diagonal() - eigs_up.real[n])
+                        -2
+                        * np.exp(2 * xgrid[:N_s])
+                        * (V_mat.diagonal()[:N_s] - eigs_up.real[n])
                     )
                 eigfuncs[i, l], eigvals[i, l] = update_orbs(
                     vecs_up, eigs_up, xgrid, config.bc, config.nmax, K
@@ -481,12 +485,16 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
     elif solve_type == "full_diag":
 
         # full diagonalization
-        evals, evecs = linalg.eig(H, b=B, check_finite=False)
+        evals, evecs = linalg.eig(H_s, b=B_s, check_finite=False)
 
         # sort and normalize
-        K = np.zeros((N, N))
-        for n in range(nmax):
-            K[:, n] = -2 * np.exp(2 * xgrid) * (V_mat.diagonal() - evals.real[n])
+        N_s = np.shape(evecs)[0]
+        K = np.zeros((N_s, N_s))
+        for n in range(N_s):
+            K[:, n] = (
+                -2 * np.exp(2 * xgrid[:N_s]) * (V_mat.diagonal()[:N_s] - evals.real[n])
+            )
+
         evecs, evals = update_orbs(evecs, evals, xgrid, bc, nmax, K)
 
         return evecs, evals
@@ -521,8 +529,8 @@ def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, nmax, K):
     # resize l_eigfuncs from N-1 to N for dirichlet condition
     if bc == "dirichlet":
         N = np.size(xgrid)
-        nmax = np.shape(l_eigfuncs)[1]
-        l_eigfuncs_dir = np.zeros((N, nmax))
+        nmax_s = np.shape(l_eigfuncs)[1]
+        l_eigfuncs_dir = np.zeros((N, nmax_s))
         l_eigfuncs_dir[:-1] = l_eigfuncs.real
         l_eigfuncs = l_eigfuncs_dir
 
