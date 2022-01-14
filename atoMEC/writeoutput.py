@@ -284,23 +284,34 @@ class SCF:
         # write the chemical potential and mean ionization state
         occs_pos = np.where(orbitals.eigvals > 0, orbitals.occnums_w, 0)
         N_ub = np.sum(occs_pos, axis=(0, 2, 3)) + density.unbound["N"]
+        V_VS = (4.0 / 3.0) * np.pi * config.r_s ** 3.0
+        N_ub_alt = V_VS * density.total[:, -1]
 
         if config.spindims == 2:
             mu_str = "Chemical potential (u/d)"
             chem_pot_str = "{mu:30s} : {mu1:7.3f} / {mu2:<7.3f}".format(
                 mu=mu_str, mu1=config.mu[0], mu2=config.mu[1]
             )
-            N_ub_str = "Mean ionization state (u/d)"
+            N_ub_str = "MIS (energy threshold) (u/d)"
             MIS_str = "{Nub:30s} : {Nub1:7.3f} / {Nub2:<7.3f}".format(
                 Nub=N_ub_str, Nub1=N_ub[0], Nub2=N_ub[1]
+            )
+
+            N_ub_str_alt = "MIS (V * n(r_s)) (u/d)"
+            MIS_str_alt = "{Nub:30s} : {Nub1:7.3f} / {Nub2:<7.3f}".format(
+                Nub=N_ub_str_alt, Nub1=N_ub_alt[0], Nub2=N_ub_alt[1]
             )
         elif config.spindims == 1:
             mu_str = "Chemical potential"
             chem_pot_str = "{mu:30s} : {mu1:7.3f}".format(mu=mu_str, mu1=config.mu[0])
-            N_ub_str = "Mean ionization state"
+            N_ub_str = "MIS (energy threshold)"
             MIS_str = "{Nub:30s} : {Nub1:7.3f}".format(Nub=N_ub_str, Nub1=N_ub[0])
+            N_ub_str_alt = "MIS (V * n(r_s))"
+            MIS_str_alt = "{Nub:30s} : {Nub1:7.3f}".format(
+                Nub=N_ub_str_alt, Nub1=N_ub_alt[0]
+            )
 
-        output_str += spc.join([chem_pot_str, MIS_str])
+        output_str += spc.join([chem_pot_str, MIS_str, MIS_str_alt])
 
         eigvals, occnums = self.write_orb_info(orbitals)
         if config.bc == "bands":
