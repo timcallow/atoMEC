@@ -36,6 +36,7 @@ from joblib import Parallel, delayed, dump, load
 # internal libs
 from . import config
 from . import mathtools
+from . import arrays
 
 # from . import writeoutput
 
@@ -123,7 +124,7 @@ def matrix_solve(v, xgrid, bc, solve_type="full", eigs_min_guess=None):
        1017-1019 (2012) `DOI:10.1119/1.4748813 <https://doi.org/10.1119/1.4748813>`__.
     """
     if eigs_min_guess is None:
-        eigs_min_guess = np.zeros((config.spindims, config.lmax))
+        eigs_min_guess = arrays.zeros32((config.spindims, config.lmax))
 
     # define the spacing of the xgrid
     dx = xgrid[1] - xgrid[0]
@@ -140,7 +141,7 @@ def matrix_solve(v, xgrid, bc, solve_type="full", eigs_min_guess=None):
     I_zero = np.eye(N)
     I_plus = np.eye(N, k=1)
 
-    p = np.zeros((N, N))  # transformation for kinetic term on log grid
+    p = arrays.zeros32((N, N))  # transformation for kinetic term on log grid
     np.fill_diagonal(p, np.exp(-2 * xgrid))
 
     # see referenced paper for definitions of A and B matrices
@@ -230,8 +231,8 @@ def KS_matsolve_parallel(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
     pmax = config.spindims * config.lmax
 
     # now flatten the potential matrix over spins
-    v_flat = np.zeros((pmax, N))
-    eigs_guess_flat = np.zeros((pmax))
+    v_flat = arrays.zeros32((pmax, N))
+    eigs_guess_flat = arrays.zeros32((pmax))
     for i in range(np.shape(v)[0]):
         for l in range(config.lmax):
             v_flat[l + (i * config.lmax)] = v[i] + 0.5 * (l + 0.5) ** 2 * np.exp(
@@ -280,8 +281,8 @@ def KS_matsolve_parallel(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
 
     if solve_type == "full":
         # retrieve the eigfuncs and eigvals from the joblib output
-        eigfuncs_flat = np.zeros((pmax, config.nmax, N))
-        eigvals_flat = np.zeros((pmax, config.nmax))
+        eigfuncs_flat = arrays.zeros32((pmax, config.nmax, N))
+        eigvals_flat = arrays.zeros32((pmax, config.nmax))
         for q in range(pmax):
             eigfuncs_flat[q] = X[q][0]
             eigvals_flat[q] = X[q][1]
@@ -334,12 +335,12 @@ def KS_matsolve_serial(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
     # compute the number of grid points
     N = np.size(xgrid)
     # initialize empty potential matrix
-    V_mat = np.zeros((N, N))
+    V_mat = arrays.zeros32((N, N))
 
     # initialize the eigenfunctions and their eigenvalues
-    eigfuncs = np.zeros((config.spindims, config.lmax, config.nmax, N))
-    eigvals = np.zeros((config.spindims, config.lmax, config.nmax))
-    eigs_guess = np.zeros((config.spindims, config.lmax))
+    eigfuncs = arrays.zeros32((config.spindims, config.lmax, config.nmax, N))
+    eigvals = arrays.zeros32((config.spindims, config.lmax, config.nmax))
+    eigs_guess = arrays.zeros32((config.spindims, config.lmax))
 
     # A new Hamiltonian has to be re-constructed for every value of l and each spin
     # channel if spin-polarized
@@ -377,7 +378,7 @@ def KS_matsolve_serial(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
                     tol=config.conv_params["eigtol"],
                 )
 
-                K = np.zeros((N, config.nmax))
+                K = arrays.zeros32((N, config.nmax))
                 for n in range(config.nmax):
                     K[:, n] = (
                         -2 * np.exp(2 * xgrid) * (V_mat.diagonal() - eigs_up.real[n])
@@ -393,7 +394,7 @@ def KS_matsolve_serial(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
 
                 # sort the eigenvalues to find the lowest
                 idr = np.argsort(eigs_up)
-                eigs_guess[i, l] = np.array(eigs_up[idr].real)[0]
+                eigs_guess[i, l] = arrays.array32(eigs_up[idr].real)[0]
 
                 # dummy variable for the null eigenfucntions
                 eigfuncs_null = eigfuncs
@@ -439,7 +440,7 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
     # compute the number of grid points
     N = np.size(xgrid)
     # initialize empty potential matrix
-    V_mat = np.zeros((N, N))
+    V_mat = arrays.zeros32((N, N))
 
     # fill potential matrices
     # np.fill_diagonal(V_mat, v + 0.5 * (l + 0.5) ** 2 * np.exp(-2 * xgrid))
@@ -471,7 +472,7 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
         )
 
         # sort and normalize
-        K = np.zeros((N, nmax))
+        K = arrays.zeros32((N, nmax))
         for n in range(nmax):
             K[:, n] = -2 * np.exp(2 * xgrid) * (V_mat.diagonal() - evals.real[n])
         evecs, evals = update_orbs(evecs, evals, xgrid, bc, K)
@@ -484,10 +485,10 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
 
         # sort the eigenvalues to find the lowest
         idr = np.argsort(evals)
-        evals = np.array(evals[idr].real)[0]
+        evals = arrays.array32(evals[idr].real)[0]
 
         # dummy eigenvector for return statement
-        evecs_null = np.zeros((N))
+        evecs_null = arrays.zeros32((N))
 
         return evecs_null, evals
 
@@ -516,13 +517,13 @@ def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, K):
     """
     # Sort eigenvalues in ascending order
     idr = np.argsort(l_eigvals)
-    eigvals = np.array(l_eigvals[idr].real)
+    eigvals = arrays.array32(l_eigvals[idr].real)
 
     # resize l_eigfuncs from N-1 to N for dirichlet condition
     if bc == "dirichlet":
         N = np.size(xgrid)
         nmax = np.shape(l_eigfuncs)[1]
-        l_eigfuncs_dir = np.zeros((N, nmax))
+        l_eigfuncs_dir = arrays.zeros32((N, nmax))
         l_eigfuncs_dir[:-1] = l_eigfuncs.real
         l_eigfuncs = l_eigfuncs_dir
 
@@ -534,7 +535,7 @@ def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, K):
     ) / (1 + h * K[-1])
 
     # convert to correct dimensions
-    eigfuncs = np.array(np.transpose(l_eigfuncs.real)[idr])
+    eigfuncs = arrays.array32(np.transpose(l_eigfuncs.real)[idr])
     eigfuncs = mathtools.normalize_orbs(eigfuncs, xgrid)  # normalize
 
     return eigfuncs, eigvals
@@ -575,7 +576,7 @@ def calc_wfns_e_grid(xgrid, v, e_arr):
     e_arr_flat = e_arr.flatten()
 
     # initialize the W (potential) and eigenfunction arrays
-    W_arr = np.zeros((N, nkpts, spindims, lmax, nmax))
+    W_arr = arrays.zeros32((N, nkpts, spindims, lmax, nmax))
     eigfuncs_init = np.zeros_like(W_arr)
 
     # set up the flattened potential matrix

@@ -27,6 +27,7 @@ import numpy as np
 # internal libs
 from . import config
 from . import mathtools
+from . import arrays
 
 # list of special codes for functionals not defined by libxc
 xc_special_codes = ["hartree", "None"]
@@ -267,7 +268,7 @@ def calc_xc(density, xgrid, xcfunc, xctype):
 
     # determine the dimensions of the xc_arr based on xctype
     if xctype == "e_xc":
-        xc_arr = np.zeros((config.grid_params["ngrid"]))
+        xc_arr = arrays.zeros32((config.grid_params["ngrid"]))
     elif xctype == "v_xc":
         xc_arr = np.zeros_like(density)
 
@@ -291,7 +292,7 @@ def calc_xc(density, xgrid, xcfunc, xctype):
         if xcfunc._family == 1:
             # lda just needs density as input
             # messy transformation for libxc - why isn't tranpose working??
-            rho_libxc = np.zeros((config.grid_params["ngrid"], config.spindims))
+            rho_libxc = arrays.zeros32((config.grid_params["ngrid"], config.spindims))
             for i in range(config.spindims):
                 rho_libxc[:, i] = density[i, :]
             inp = {"rho": rho_libxc}
