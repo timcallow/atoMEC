@@ -161,7 +161,7 @@ class Atom:
         The total electron number is given by the sum of :obj:`at_chrg`
         and :obj:`charge`.
         """
-        return self.at_chrg + self._charge
+        return self.at_chrg - self._charge
 
     @property
     def units_radius(self):

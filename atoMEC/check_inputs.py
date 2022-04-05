@@ -149,7 +149,7 @@ class Atom:
         InputError.charge_error
             if charge is not an integer
         """
-        if not isinstance(charge, intc):
+        if not isinstance(charge, (float, intc)):
             raise InputError.charge_error()
         else:
             return charge
@@ -581,10 +581,10 @@ electrons. Only quantum treatment is permitted."
 
         # computes the default value of spin magnetization
         if spinmag == -1:
-            if nele % 2 == 0:
-                spinmag = 0
-            else:
+            if nele % 2 == 1:
                 spinmag = 1
+            else:
+                spinmag = 0
         elif spinmag > -1:
             if nele % 2 == 0 and spinmag % 2 != 0:
                 raise InputError.spinmag_error(
@@ -645,11 +645,11 @@ electrons. Only quantum treatment is permitted."
             just total electron number
         """
         if not spinpol:
-            nele = np.array([nele], dtype=int)
+            nele = np.array([nele], dtype=float)
         else:
             nele_up = (nele + spinmag) / 2
             nele_dw = (nele - spinmag) / 2
-            nele = np.array([nele_up, nele_dw], dtype=int)
+            nele = np.array([nele_up, nele_dw], dtype=float)
 
         return nele
 
