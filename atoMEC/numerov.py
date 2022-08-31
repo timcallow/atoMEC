@@ -176,19 +176,19 @@ def KS_matsolve_parallel(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
     if solve_type == "full":
 
         eigfuncs, eigvals = KS_matsolve_parallel_full(
-            T, B, v, xgrid, bc, eigs_min_guess
+            T, B, v, xgrid, bc, eigs_min_guess, config.lmax
         )
 
     elif solve_type == "guess":
 
         eigfuncs, eigvals = KS_matsolve_parallel_guess(
-            T, B, v, xgrid, bc, eigs_min_guess
+            T, B, v, xgrid, bc, eigs_min_guess, config.lmax
         )
 
     return eigfuncs, eigvals
 
 
-def KS_matsolve_parallel_full(T, B, v, xgrid, bc, eigs_min_guess):
+def KS_matsolve_parallel_full(T, B, v, xgrid, bc, eigs_min_guess, lmax):
     """
     Solve the KS matrix diagonalization by parallelizing over config.numcores.
 
@@ -244,17 +244,16 @@ def KS_matsolve_parallel_full(T, B, v, xgrid, bc, eigs_min_guess):
     N = np.size(xgrid)
 
     # Compute the number pmax of distinct diagonizations to be solved
-    pmax = config.spindims * config.lmax
+    eigs_min_guess = eigs_min_guess[:, :lmax]
+    pmax = config.spindims * lmax
 
     # now flatten the potential matrix over spins
     v_flat = np.zeros((pmax, N))
     eigs_guess_flat = np.zeros((pmax))
     for i in range(np.shape(v)[0]):
-        for l in range(config.lmax):
-            v_flat[l + (i * config.lmax)] = v[i] + 0.5 * (l + 0.5) ** 2 * np.exp(
-                -2 * xgrid
-            )
-            eigs_guess_flat[l + (i * config.lmax)] = eigs_min_guess[i, l]
+        for l in range(lmax):
+            v_flat[l + (i * lmax)] = v[i] + 0.5 * (l + 0.5) ** 2 * np.exp(-2 * xgrid)
+            eigs_guess_flat[l + (i * lmax)] = eigs_min_guess[i, l]
 
     # make temporary folder with random name to store arrays
     while True:
@@ -303,13 +302,13 @@ def KS_matsolve_parallel_full(T, B, v, xgrid, bc, eigs_min_guess):
         eigvals_flat[q] = X[q][1]
 
     # unflatten eigfuncs / eigvals so they return to original shape
-    eigfuncs = eigfuncs_flat.reshape(config.spindims, config.lmax, config.nmax, N)
-    eigvals = eigvals_flat.reshape(config.spindims, config.lmax, config.nmax)
+    eigfuncs = eigfuncs_flat.reshape(config.spindims, lmax, config.nmax, N)
+    eigvals = eigvals_flat.reshape(config.spindims, lmax, config.nmax)
 
     return eigfuncs, eigvals
 
 
-def KS_matsolve_parallel_guess(T, B, v, xgrid, bc, eigs_min_guess):
+def KS_matsolve_parallel_guess(T, B, v, xgrid, bc, eigs_min_guess, lmax):
     """
     Solve the KS matrix diagonalization by parallelizing over config.numcores.
 
@@ -365,17 +364,16 @@ def KS_matsolve_parallel_guess(T, B, v, xgrid, bc, eigs_min_guess):
     N = np.size(xgrid)
 
     # Compute the number pmax of distinct diagonizations to be solved
-    pmax = config.spindims * config.lmax
+    eigs_min_guess = eigs_min_guess[:, :lmax]
+    pmax = config.spindims * lmax
 
     # now flatten the potential matrix over spins
     v_flat = np.zeros((pmax, N))
     eigs_guess_flat = np.zeros((pmax))
     for i in range(np.shape(v)[0]):
-        for l in range(config.lmax):
-            v_flat[l + (i * config.lmax)] = v[i] + 0.5 * (l + 0.5) ** 2 * np.exp(
-                -2 * xgrid
-            )
-            eigs_guess_flat[l + (i * config.lmax)] = eigs_min_guess[i, l]
+        for l in range(lmax):
+            v_flat[l + (i * lmax)] = v[i] + 0.5 * (l + 0.5) ** 2 * np.exp(-2 * xgrid)
+            eigs_guess_flat[l + (i * lmax)] = eigs_min_guess[i, l]
 
     # make temporary folder with random name to store arrays
     while True:
@@ -420,7 +418,7 @@ def KS_matsolve_parallel_guess(T, B, v, xgrid, bc, eigs_min_guess):
         eigs_guess_flat[q] = X[q][1]
     eigfuncs_null = X[:][0]
 
-    eigs_guess = eigs_guess_flat.reshape(config.spindims, config.lmax)
+    eigs_guess = eigs_guess_flat.reshape(config.spindims, lmax)
 
     return eigfuncs_null, eigs_guess
 
