@@ -216,6 +216,7 @@ class ISModel:
         self,
         nmax,
         lmax,
+        lmax_alpha=0,
         grid_params={},
         conv_params={},
         scf_params={},
@@ -326,6 +327,9 @@ class ISModel:
         # reset global parameters if they are changed
         config.nmax = nmax
         config.lmax = lmax
+        if lmax_alpha == 0:
+            lmax_alpha = lmax
+        config.lmax_alpha = lmax_alpha
         config.grid_params = check_inputs.EnergyCalcs.check_grid_params(grid_params)
         config.conv_params = check_inputs.EnergyCalcs.check_conv_params(conv_params)
         config.scf_params = check_inputs.EnergyCalcs.check_scf_params(scf_params)
