@@ -69,7 +69,7 @@ def calc_eigs_min(v, xgrid, bc):
     v_coarse = func_interp(xgrid_coarse)
 
     # full diagonalization to estimate the lowest eigenvalues
-    eigs_min = matrix_solve(v_coarse, xgrid_coarse, bc, solve_type="guess")[1]
+    eigs_min = matrix_solve(v_coarse, xgrid_coarse, bc, solve_type="guess")[1][:, :, 0]
 
     return eigs_min
 
@@ -186,12 +186,14 @@ def KS_matsolve_parallel(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
                 T, B, v, xgrid, bc, eigs_min_guess, config.lmax_alpha
             )
 
-            eigfuncs_2, eigvals_2 = KS_matsolve_parallel_full(
+            eigfuncs_2, eigvals_2 = KS_matsolve_parallel_guess(
                 T, B, v, xgrid, bc, eigs_min_guess, config.lmax, lmin=config.lmax_alpha
             )
 
-            eigfuncs = np.concatenate((eigfuncs_1, eigfuncs_2), axis=1)
+            eigfuncs_2 = calc_wfns_e_grid(xgrid, v, eigvals_2[np.newaxis, :])[0]
+
             eigvals = np.concatenate((eigvals_1, eigvals_2), axis=1)
+            eigfuncs = np.concatenate((eigfuncs_1, eigfuncs_2), axis=1)
 
     elif solve_type == "guess":
 
@@ -432,13 +434,26 @@ def KS_matsolve_parallel_guess(T, B, v, xgrid, bc, eigs_min_guess, lmax, lmin=0)
     except:  # noqa
         print("Could not clean-up automatically.")
 
+    # for q in range(pmax):
+    #     eigs_guess_flat[q] = X[q][1]
+    # eigfuncs_null = X[:][0]
+
+    # eigs_guess = eigs_guess_flat.reshape(config.spindims, lmax - lmin)
+
+    # retrieve the eigfuncs and eigvals from the joblib output
+    eigfuncs_flat = np.zeros((pmax, config.nmax, N))
+    eigvals_flat = np.zeros((pmax, config.nmax))
     for q in range(pmax):
-        eigs_guess_flat[q] = X[q][1]
-    eigfuncs_null = X[:][0]
+        eigfuncs_flat[q] = X[q][0]
+        eigvals_flat[q] = X[q][1]
 
-    eigs_guess = eigs_guess_flat.reshape(config.spindims, lmax - lmin)
+    # unflatten eigfuncs / eigvals so they return to original shape
+    eigfuncs = eigfuncs_flat.reshape(config.spindims, lmax - lmin, config.nmax, N)
+    eigvals = eigvals_flat.reshape(config.spindims, lmax - lmin, config.nmax)
 
-    return eigfuncs_null, eigs_guess
+    return eigfuncs, eigvals
+
+    # return eigfuncs_null, eigs_guess
 
 
 def KS_matsolve_serial(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
@@ -574,31 +589,32 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
     evals : ndarray
         the KS eigenvalues
     """
-    # compute the number of grid points
-    N = np.size(xgrid)
-    # initialize empty potential matrix
-    V_mat = np.zeros((N, N))
-
-    # fill potential matrices
-    # np.fill_diagonal(V_mat, v + 0.5 * (l + 0.5) ** 2 * np.exp(-2 * xgrid))
-    np.fill_diagonal(V_mat, v[p])
-
-    # construct Hamiltonians
-    H = T + B @ V_mat
-
-    # if dirichlet solve on (N-1) x (N-1) grid
-    if bc == "dirichlet":
-        H_s = H[: N - 1, : N - 1]
-        B_s = B[: N - 1, : N - 1]
-    # if neumann don't change anything
-    elif bc == "neumann":
-        H_s = H
-        B_s = B
 
     # we seek the lowest nmax eigenvalues from sparse matrix diagonalization
     # use 'shift-invert mode' to find the eigenvalues nearest in magnitude to
     # the estimated lowest eigenvalue from full diagonalization on coarse grid
     if solve_type == "full":
+
+        # compute the number of grid points
+        N = np.size(xgrid)
+        # initialize empty potential matrix
+        V_mat = np.zeros((N, N))
+
+        # fill potential matrices
+        # np.fill_diagonal(V_mat, v + 0.5 * (l + 0.5) ** 2 * np.exp(-2 * xgrid))
+        np.fill_diagonal(V_mat, v[p])
+
+        # construct Hamiltonians
+        H = T + B @ V_mat
+
+        # if dirichlet solve on (N-1) x (N-1) grid
+        if bc == "dirichlet":
+            H_s = H[: N - 1, : N - 1]
+            B_s = B[: N - 1, : N - 1]
+        # if neumann don't change anything
+        elif bc == "neumann":
+            H_s = H
+            B_s = B
         evals, evecs = eigs(
             H_s,
             k=nmax,
@@ -626,12 +642,10 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
             K[:, n] = -2 * np.exp(2 * xgrid) * (V_mat.diagonal() - evals.real[n])
         evecs, evals = update_orbs(evecs, evals, xgrid, bc, K, nmax)
 
-        evals = evals[0]
-
         # dummy eigenvector for return statement
-        evecs_null = np.zeros((N))
+        # evecs_null = np.zeros((N))
 
-        return evecs_null, evals
+        return evecs, evals
 
 
 def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, K, nmax):
@@ -663,8 +677,8 @@ def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, K, nmax):
     # resize l_eigfuncs from N-1 to N for dirichlet condition
     if bc == "dirichlet":
         N = np.size(xgrid)
-        nmax = np.shape(l_eigfuncs)[1]
-        l_eigfuncs_dir = np.zeros((N, nmax))
+        nmax_t = np.shape(l_eigfuncs)[1]
+        l_eigfuncs_dir = np.zeros((N, nmax_t))
         l_eigfuncs_dir[:-1] = l_eigfuncs.real
         l_eigfuncs = l_eigfuncs_dir
 
