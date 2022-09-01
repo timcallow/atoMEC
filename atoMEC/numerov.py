@@ -503,7 +503,7 @@ def KS_matsolve_serial(T, B, v, xgrid, bc, solve_type, eigs_min_guess):
                         -2 * np.exp(2 * xgrid) * (V_mat.diagonal() - eigs_up.real[n])
                     )
                 eigfuncs[i, l], eigvals[i, l] = update_orbs(
-                    vecs_up, eigs_up, xgrid, bc, K
+                    vecs_up, eigs_up, xgrid, bc, K, config.nmax
                 )
 
             elif solve_type == "guess":
@@ -594,17 +594,21 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
         K = np.zeros((N, nmax))
         for n in range(nmax):
             K[:, n] = -2 * np.exp(2 * xgrid) * (V_mat.diagonal() - evals.real[n])
-        evecs, evals = update_orbs(evecs, evals, xgrid, bc, K)
+        evecs, evals = update_orbs(evecs, evals, xgrid, bc, K, nmax)
 
         return evecs, evals
 
     # estimate the lowest eigenvalues for a given value of l
     elif solve_type == "guess":
-        evals = linalg.eigvals(H, b=B, check_finite=False)
+        evals, evecs = linalg.eig(H_s, b=B_s, check_finite=False)
 
-        # sort the eigenvalues to find the lowest
-        idr = np.argsort(evals)
-        evals = np.array(evals[idr].real)[0]
+        # sort and normalize
+        K = np.zeros((N, len(evals)))
+        for n in range(len(evals)):
+            K[:, n] = -2 * np.exp(2 * xgrid) * (V_mat.diagonal() - evals.real[n])
+        evecs, evals = update_orbs(evecs, evals, xgrid, bc, K, nmax)
+
+        evals = evals[0]
 
         # dummy eigenvector for return statement
         evecs_null = np.zeros((N))
@@ -612,7 +616,7 @@ def diag_H(p, T, B, v, xgrid, nmax, bc, eigs_guess, solve_type):
         return evecs_null, evals
 
 
-def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, K):
+def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, K, nmax):
     """
     Sort the eigenvalues and functions by ascending energies and normalize orbs.
 
@@ -656,6 +660,10 @@ def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, K):
     # convert to correct dimensions
     eigfuncs = np.array(np.transpose(l_eigfuncs.real)[idr])
     eigfuncs = mathtools.normalize_orbs(eigfuncs, xgrid)  # normalize
+
+    # truncate (required for guess)
+    eigvals = eigvals[:nmax]
+    eigfuncs = eigfuncs[:nmax]
 
     return eigfuncs, eigvals
 
