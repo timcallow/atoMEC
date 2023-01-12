@@ -166,7 +166,7 @@ class Orbitals:
         r"""ndarray: Density of states (DOS) matrix."""
         if config.bc == "bands":
             self._DOS = self.make_DOS_bands(
-                self.eigvals_min, self.eigvals_max, self.eigvals
+                self.eigvals_min, self.eigvals_max, self.eigvals, method="rozsnyai"
             )
         return self._DOS
 
@@ -408,7 +408,7 @@ class Orbitals:
         return ldegen_mat
 
     @staticmethod
-    def make_DOS_bands(eigs_min, eigs_max, eigvals):
+    def make_DOS_bands(eigs_min, eigs_max, eigvals, method="massacrier"):
         r"""
         Compute the density-of-states using the method of Massacrier (see notes, [6]_).
 
@@ -450,27 +450,38 @@ class Orbitals:
             "ijk,lijk->lijk", eigs_max - eigs_min, np.ones_like(eigvals)
         )
 
-        # compute delta and (e_+ - e) * (e - e_-)
-        delta = 0.5 * eig_diff
-        hub_func = (eigs_max - eigvals) * (eigvals - eigs_min)
+        if method == "massacrier":
+            # compute delta and (e_+ - e) * (e - e_-)
+            delta = 0.5 * eig_diff
+            hub_func = (eigs_max - eigvals) * (eigvals - eigs_min)
 
-        # take the sqrt when the energy gap is big enough to justify a band
-        f_sqrt = np.where(
-            eig_diff > config.band_params["de_min"],
-            np.sqrt(np.abs(hub_func)),
-            1.0,
-        )
+            # take the sqrt when the energy gap is big enough to justify a band
+            f_sqrt = np.where(
+                eig_diff > config.band_params["de_min"],
+                np.sqrt(np.abs(hub_func)),
+                1.0,
+            )
 
-        # compute the pre-factor when the energy gap is large enough for a band
-        prefac = np.where(
-            eig_diff > config.band_params["de_min"],
-            2.0 / (pi * delta ** 2.0),
-            1.0,
-        )
+            # compute the pre-factor when the energy gap is large enough for a band
+            prefac = np.where(
+                eig_diff > config.band_params["de_min"],
+                2.0 / (pi * delta ** 2.0),
+                1.0,
+            )
+
+        elif method == "rozsnyai":
+
+            f_sqrt = np.where(eig_diff > config.band_params["de_min"], np.sqrt(eigvals - eigs_min), 1.0)
+
+            prefac = np.where(
+                eig_diff > config.band_params["de_min"],
+                3 * eig_diff ** -1.5,
+                1.0,
+            )            
 
         # compute the dos
         dos = prefac * f_sqrt
-
+            
         return dos
 
     @staticmethod
