@@ -25,6 +25,7 @@ import tabulate
 # internal libs
 from . import unitconv
 from . import config
+from . import arrays
 
 # define some line spacings
 spc = "\n"
@@ -609,7 +610,7 @@ def eigs_occs_to_csv(orbitals, filename):
     -------
     None
     """
-    data_tot = np.array([])
+    data_tot = arrays.array32([])
     for sp in range(config.spindims):
         # flatten out the relevant matrices
         # and sort by energy eigenvalue
@@ -653,7 +654,7 @@ def dos_to_csv(orbitals, filename):
     -------
     None
     """
-    data_tot = np.array([])
+    data_tot = arrays.array32([])
     for sp in range(config.spindims):
 
         # compute the dos (*(2l+1)) and FD dist in amenable format

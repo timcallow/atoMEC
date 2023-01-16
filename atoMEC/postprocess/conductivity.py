@@ -25,7 +25,7 @@ from scipy.special import lpmv
 from scipy.integrate import quad
 
 # internal modules
-from atoMEC import mathtools
+from atoMEC import mathtools, arrays
 
 
 class KuboGreenwood:
@@ -321,7 +321,7 @@ Please run again with spin-unpolarized input."
 
         # initialize sum_mom and various indices
         nbands, nspin, lmax, nmax = np.shape(self._eigvals)
-        sum_mom = np.zeros((nbands))
+        sum_mom = arrays.zeros32((nbands))
 
         # compute the sum rule
         for k in range(nbands):
@@ -515,11 +515,11 @@ Please run again with spin-unpolarized input."
 
         # set up the frequency array - must start a bit above zero
         # sqrt spacing from origin gives faster convergence wrt nfreq
-        omega_arr = np.linspace(1e-5, np.sqrt(omega_max), n_freq) ** 2
+        omega_arr = np.linspace(1e-5, np.sqrt(omega_max), n_freq, dtype=np.float32) ** 2
 
         # set up lorentzian: requires dummy array to get right shape
-        sig_omega = np.zeros((np.size(omega_arr), 2))
-        omega_dummy_mat = np.ones((nbands, lmax, nmax, lmax, nmax, n_freq))
+        sig_omega = arrays.zeros32((np.size(omega_arr), 2))
+        omega_dummy_mat = arrays.ones32((nbands, lmax, nmax, lmax, nmax, n_freq))
         eig_diff_omega_mat = np.einsum(
             "nijkl,nijklm->nijklm", eig_diff_mat, omega_dummy_mat
         )
@@ -564,7 +564,7 @@ Please run again with spin-unpolarized input."
             the occupation number difference matrix
         """
         nbands, nspin, lmax, nmax = np.shape(occnums)
-        occ_diff_mat = np.zeros((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
+        occ_diff_mat = arrays.zeros32((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
 
         for l1, n1 in orb_subset_1:
             for l2, n2 in orb_subset_2:
@@ -598,7 +598,7 @@ Please run again with spin-unpolarized input."
             the occupation number difference matrix
         """
         nbands, nspin, lmax, nmax = np.shape(eigvals)
-        eig_diff_mat = np.zeros((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
+        eig_diff_mat = arrays.zeros32((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
         eig_diff_mat += 1e-6
 
         for l1, n1 in orb_subset_1:
@@ -699,7 +699,7 @@ class SphHamInts:
         P2 and P4 functions, ands the :func:`P2_func`, :func:`P4_func` and
         :func:`P_int` functions.
         """
-        P_mat = np.zeros((lmax, lmax, 2 * lmax + 1))
+        P_mat = arrays.zeros32((lmax, lmax, 2 * lmax + 1))
 
         for l1 in range(lmax):
             for l2 in range(lmax):
@@ -903,7 +903,7 @@ class RadialInts:
 
         # initiliaze the matrix
         nbands, nspin, lmax, nmax = np.shape(occnums)
-        R1_mat = np.zeros((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
+        R1_mat = arrays.zeros32((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
 
         # integrate over the sphere
         for l1, n1 in orb_subset_1:
@@ -981,7 +981,7 @@ class RadialInts:
         """
         # initiliaze the matrix
         nbands, nspin, lmax, nmax = np.shape(occnums)
-        R2_mat = np.zeros((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
+        R2_mat = arrays.zeros32((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
 
         # integrate over the sphere
         for l1, n1 in orb_subset_1:

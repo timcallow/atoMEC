@@ -27,6 +27,7 @@ from math import pi
 from . import unitconv
 from . import xc
 from . import config
+from . import arrays
 
 
 # define some custom types
@@ -646,11 +647,11 @@ electrons. Only quantum treatment is permitted."
             just total electron number
         """
         if not spinpol:
-            nele = np.array([nele], dtype=int)
+            nele = arrays.array32([nele], dtype=int)
         else:
             nele_up = (nele + spinmag) / 2
             nele_dw = (nele - spinmag) / 2
-            nele = np.array([nele_up, nele_dw], dtype=int)
+            nele = arrays.array32([nele_up, nele_dw], dtype=int)
 
         return nele
 

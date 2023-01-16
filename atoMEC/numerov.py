@@ -63,7 +63,7 @@ def calc_eigs_min(v, xgrid, bc):
         `l` angular quantum number and spin quantum number
     """
     # first of all create the coarse xgrid
-    xgrid_coarse = np.linspace(xgrid[0], xgrid[-1], config.grid_params["ngrid_coarse"])
+    xgrid_coarse = np.linspace(xgrid[0], xgrid[-1], config.grid_params["ngrid_coarse"], dtype=np.float32)
 
     # interpolate the potential onto the coarse grid
     func_interp = interp1d(xgrid, v, kind="cubic")
@@ -137,16 +137,16 @@ def matrix_solve(v, xgrid, bc, solve_type="full", eigs_min_guess=None):
     # |u> is related to the radial eigenfunctions R(r) via R(x)=exp(x/2)u(x)
 
     # off-diagonal matrices
-    I_minus = np.eye(N, k=-1)
-    I_zero = np.eye(N)
-    I_plus = np.eye(N, k=1)
+    I_minus = np.eye(N, k=-1, dtype=np.float32)
+    I_zero = np.eye(N, dtype=np.float32)
+    I_plus = np.eye(N, k=1, dtype=np.float32)
 
     p = arrays.zeros32((N, N))  # transformation for kinetic term on log grid
     np.fill_diagonal(p, np.exp(-2 * xgrid))
 
     # see referenced paper for definitions of A and B matrices
-    A = np.array((I_minus - 2 * I_zero + I_plus) / dx ** 2)
-    B = np.array((I_minus + 10 * I_zero + I_plus) / 12)
+    A = arrays.array32((I_minus - 2 * I_zero + I_plus) / dx ** 2)
+    B = arrays.array32((I_minus + 10 * I_zero + I_plus) / 12)
 
     # von neumann boundary conditions
     if bc == "neumann":

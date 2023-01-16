@@ -19,7 +19,7 @@ from scipy.signal import argrelmin
 import numpy as np
 
 # internal modules
-from atoMEC import staticKS, mathtools
+from atoMEC import staticKS, mathtools, arrays
 
 
 class ELFTools:
@@ -59,8 +59,8 @@ class ELFTools:
         spindims = np.shape(self._eigfuncs)[1]
         ngrid = np.shape(self._eigfuncs)[4]
 
-        self._ELF = np.zeros((spindims, ngrid))
-        self._epdc = np.zeros((spindims, ngrid))
+        self._ELF = arrays.zeros32((spindims, ngrid))
+        self._epdc = arrays.zeros32((spindims, ngrid))
         self._N_shell = None
 
     @property
@@ -395,7 +395,7 @@ def calc_IPR_mat(eigfuncs, xgrid):
     lmax = np.shape(eigfuncs)[2]
     nmax = np.shape(eigfuncs)[3]
 
-    IPR_mat = np.zeros((nkpts, spindims, lmax, nmax))
+    IPR_mat = arrays.zeros32((nkpts, spindims, lmax, nmax))
 
     # compute the IPR matrix
     # FIXME: add spherical harmonic term

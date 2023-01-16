@@ -25,6 +25,7 @@ from scipy import optimize, integrate
 
 # internal libraries
 from . import config
+from . import arrays
 
 
 def normalize_orbs(eigfuncs_x, xgrid):
@@ -322,7 +323,7 @@ def chem_pot(orbs):
     # so far only the ideal treatment for unbound electrons is implemented
     for i in range(config.spindims):
         # increase the bracket size until a solution is found
-        bracket = np.array([-10, 10])
+        bracket = arrays.array32([-10, 10])
         while True:
             try:
                 x0 = mu0[i]
