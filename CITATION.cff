@@ -12,6 +12,9 @@ authors:
     family-names: Tsvetoslavova Stankulova
     given-names: Ekaterina
   - affiliation: "Fritz Haber Center for Molecular Dynamics and Institute of Chemistry, The Hebrew University of Jerusalem"
+    family-names: Rahat
+    given-names: Nathan
+  - affiliation: "Fritz Haber Center for Molecular Dynamics and Institute of Chemistry, The Hebrew University of Jerusalem"
     family-names: Kraisler
     given-names: Eli
     orcid: https://orcid.org/0000-0003-0139-258X
@@ -19,8 +22,8 @@ authors:
     family-names: Cangi
     given-names: Attila
     orcid: https://orcid.org/0000-0001-9162-262X
-cff-version: 1.1.1
-date-released: 2021-12-14
+cff-version: 1.2.0
+date-released: 2022-11-28
 keywords:
   - "density-functional-theory"
   - "plasma-physics"
@@ -32,4 +35,4 @@ message: "If you use this software, please cite it using these metadata."
 repository-code: "https://github.com/atomec-project/atoMEC"
 title: atoMEC
 doi: 10.5281/zenodo.5205718 # This DOI represents all versions, and will always resolve to the latest one.
-version: 1.1.1
+version: 1.2.0

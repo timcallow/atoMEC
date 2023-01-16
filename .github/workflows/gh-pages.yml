@@ -1,27 +1,24 @@
 name: docs
 
 on:
-  pull_request_review:
-    types: [submitted,edited]
   pull_request:
     branches:
       - master
       - develop
-      - documentation
   push:
     branches:
-      - documentation
+      - master
       - develop
 
 jobs:
   python-style-checks:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.8'
 
@@ -39,13 +36,13 @@ jobs:
 
   build-and-deploy-pages:
     needs: python-style-checks
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.8'
 
@@ -63,7 +60,7 @@ jobs:
           mv -v docs/_build/html public
 
       - name: Deploy
-        if: ${{ github.event.review.state == 'approved' || github.event_name == 'push' }}
+        if: ${{ github.event_name == 'push' }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}

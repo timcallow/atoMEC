@@ -10,11 +10,12 @@ with open("LICENSE") as f:
 extras = {
     'dev': ['bump2version'],
     'docs': open('docs/requirements.txt').read().splitlines(),
+    'tests': open('tests/requirements.txt').read().splitlines(),
 }
 
 setup(
     name="atoMEC",
-    version="1.1.1",
+    version="1.2.0",
     description="KS-DFT average-atom code",
     long_description=readme,
     long_description_content_type='text/markdown',

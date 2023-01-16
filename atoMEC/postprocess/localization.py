@@ -1,9 +1,24 @@
-"""Things related to electron localization."""
+"""
+The localization module handles routines designed to measure electron localization.
 
+Classes
+-------
+* :class:`ELFTools` : Holds functions to compute the electron localization function\
+                      (ELF) and related quantities e.g. number of electrons per shell.
+
+Functions
+---------
+* :func:`calc_IPR_mat`: Computes the inverse participation ratio (IPR) for the orbitals.
+"""
+
+# standard packages
 from math import pi
+
+# external packages
 from scipy.signal import argrelmin
 import numpy as np
 
+# internal modules
 from atoMEC import staticKS, mathtools
 
 
@@ -17,13 +32,19 @@ class ELFTools:
 
     Parameters
     ----------
+    Atom : atoMEC.Atom
+        the Atom object
+    model : models.ISModel
+        the model object
     orbitals : staticKS.Orbitals
         the orbitals object
     density : staticKS.Density
         the density object
+    method : str, optional
+        the method used for the ELF, "orbitals" or "density"
     """
 
-    def __init__(self, orbitals, density, method="orbitals"):
+    def __init__(self, Atom, model, orbitals, density, method="orbitals"):
         self._orbs = orbitals
         self._density = density
         self._eigfuncs = self._orbs.eigfuncs
@@ -58,13 +79,12 @@ class ELFTools:
     @property
     def epdc(self):
         r"""ndarray: the electron pair density curvature."""
-        if np.all(self._epdc == 0.0):
-            if self.method == "orbitals":
-                self._epdc = self.calc_epdc(
-                    self._eigfuncs, self._occnums_w, self._xgrid, self._totdensity
-                )
-            elif self.method == "density":
-                self._epdc = self.calc_epdc_dens(self._xgrid, self._totdensity)
+        if self.method == "orbitals":
+            self._epdc = self.calc_epdc(
+                self._eigfuncs, self._occnums_w, self._xgrid, self._totdensity
+            )
+        elif self.method == "density":
+            self._epdc = self.calc_epdc_dens(self._xgrid, self._totdensity)
         return self._epdc
 
     @property
@@ -110,7 +130,7 @@ class ELFTools:
         electron gas (UEG) respectively.
         """
         # compute the UEG electron pair density curvature
-        D_0 = (0.3) * (3 * pi ** 2) ** (2.0 / 3.0) * (density) ** (5.0 / 3.0)
+        D_0 = (0.3) * (3 * pi**2) ** (2.0 / 3.0) * (density) ** (5.0 / 3.0)
 
         # compute the main electron pair density curvature
         if method == "orbitals":
@@ -122,7 +142,7 @@ class ELFTools:
         chi = D / D_0
 
         # compute the ELF
-        ELF = 1.0 / (1.0 + chi ** 2)
+        ELF = 1.0 / (1.0 + chi**2)
 
         return ELF
 
@@ -204,7 +224,7 @@ class ELFTools:
         )
 
         # compute the UEG electron pair density curvature
-        D_0 = (0.3) * (3 * pi ** 2) ** (2.0 / 3.0) * (density) ** (5.0 / 3.0)
+        D_0 = (0.3) * (3 * pi**2) ** (2.0 / 3.0) * (density) ** (5.0 / 3.0)
 
         # compute epdc
         epdc = D_0 - (grad_dens) ** 2.0 / (9.0 * density) + lap_dens / 6.0
@@ -249,10 +269,10 @@ class ELFTools:
                     xargs_min[i].append(xarg)
 
         if spindims == 1:
-            xargs_min[0].append(-1)
+            xargs_min[0].append(len(xgrid) - 1)
         elif spindims == 2:
-            xargs_min[0].append(-1)
-            xargs_min[1].append(-1)
+            xargs_min[0].append(len(xgrid) - 1)
+            xargs_min[1].append(len(xgrid) - 1)
 
         return xargs_min
 
@@ -287,10 +307,12 @@ class ELFTools:
             for j in range(len(xargs_min[i]) - 1):
 
                 # determine the part of the xgrid lying between two minima
-                xgrid_partition = xgrid[xargs_min[i][j] : xargs_min[i][j + 1]]
+                xgrid_partition = xgrid[xargs_min[i][j] : xargs_min[i][j + 1] + 1]
 
                 # determine the part of the density lying between two minima
-                density_partition = density[i][xargs_min[i][j] : xargs_min[i][j + 1]]
+                density_partition = density[i][
+                    xargs_min[i][j] : xargs_min[i][j + 1] + 1
+                ]
 
                 # this will be going...
                 # ELF_partition = ELF[i][xargs_min[i][j] : xargs_min[i][j + 1]]
@@ -303,6 +325,35 @@ class ELFTools:
             N_shell[i].pop()
 
         return N_shell
+
+
+def MIS_count(model, orbitals, core_orbs):
+    r"""
+    Calculate the MIS using the "counting" method.
+
+    Parameters
+    ----------
+    model : models.ISModel
+        the ISModel object
+    orbitals : staticKS.orbitals
+        the KS orbitals object
+    core_orbs : list of tuples
+        the core orbitals
+
+    Returns
+    -------
+    MIS : np.ndarray
+        the mean ionization state
+    """
+    # start by retrieving the total electron number
+    MIS = model.nele.astype(np.float64)
+
+    # loop over the core orbitals and subtract their occupation numbers
+    for core_orb in core_orbs:
+        l, n = core_orb
+        MIS -= np.sum(orbitals.occnums_w[:, :, l, n], axis=0)
+
+    return MIS
 
 
 def calc_IPR_mat(eigfuncs, xgrid):
@@ -339,20 +390,22 @@ def calc_IPR_mat(eigfuncs, xgrid):
 
     """
     # get the dimensions for the IPR matrix
-    spindims = np.shape(eigfuncs)[0]
-    lmax = np.shape(eigfuncs)[1]
-    nmax = np.shape(eigfuncs)[2]
+    nkpts = np.shape(eigfuncs)[0]
+    spindims = np.shape(eigfuncs)[1]
+    lmax = np.shape(eigfuncs)[2]
+    nmax = np.shape(eigfuncs)[3]
 
-    IPR_mat = np.zeros((spindims, lmax, nmax))
+    IPR_mat = np.zeros((nkpts, spindims, lmax, nmax))
 
     # compute the IPR matrix
     # FIXME: add spherical harmonic term
-    for i in range(spindims):
-        for l in range(lmax):
-            for n in range(nmax):
-                # compute |X_nl(x)|^4 = |P_nl(x)|^4 * exp(-2x)
-                Psi4 = eigfuncs[i, l, n, :] ** 4.0 * np.exp(-2 * xgrid)
-                # integrate over sphere
-                IPR_mat[i, l, n] = mathtools.int_sphere(Psi4, xgrid)
+    for k in range(nkpts):
+        for sp in range(spindims):
+            for l in range(lmax):
+                for n in range(nmax):
+                    # compute |X_nl(x)|^4 = |P_nl(x)|^4 * exp(-2x)
+                    Psi4 = eigfuncs[k, sp, l, n, :] ** 4.0 * np.exp(-2 * xgrid)
+                    # integrate over sphere
+                    IPR_mat[k, sp, l, n] = mathtools.int_sphere(Psi4, xgrid)
 
     return IPR_mat
