@@ -356,7 +356,7 @@ class Atom:
         # radius in cm
         rad_cm = radius / unitconv.cm_to_bohr
         # volume in cm
-        vol_cm = (4.0 * pi * rad_cm ** 3) / 3.0
+        vol_cm = (4.0 * pi * rad_cm**3) / 3.0
         # atomic mass in g
         mass_g = config.mp_g * atom.at_mass
         # density in g cm^-3
@@ -647,11 +647,11 @@ electrons. Only quantum treatment is permitted."
             just total electron number
         """
         if not spinpol:
-            nele = arrays.array32([nele], dtype=int)
+            nele = np.array([nele], dtype=int)
         else:
             nele_up = (nele + spinmag) / 2
             nele_dw = (nele - spinmag) / 2
-            nele = arrays.array32([nele_up, nele_dw], dtype=int)
+            nele = np.array([nele_up, nele_dw], dtype=int)
 
         return nele
 
