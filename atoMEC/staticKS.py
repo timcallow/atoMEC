@@ -475,7 +475,7 @@ class Orbitals:
 
             prefac = np.where(
                 eig_diff > config.band_params["de_min"],
-                3 * eig_diff ** -1.5,
+                1.5 * eig_diff ** -1.5,
                 1.0,
             )            
 
