@@ -63,7 +63,9 @@ def calc_eigs_min(v, xgrid, bc):
         `l` angular quantum number and spin quantum number
     """
     # first of all create the coarse xgrid
-    xgrid_coarse = np.linspace(xgrid[0], xgrid[-1], config.grid_params["ngrid_coarse"], dtype=np.float32)
+    xgrid_coarse = np.linspace(
+        xgrid[0], xgrid[-1], config.grid_params["ngrid_coarse"], dtype=np.float32
+    )
 
     # interpolate the potential onto the coarse grid
     func_interp = interp1d(xgrid, v, kind="cubic")
@@ -124,7 +126,7 @@ def matrix_solve(v, xgrid, bc, solve_type="full", eigs_min_guess=None):
        1017-1019 (2012) `DOI:10.1119/1.4748813 <https://doi.org/10.1119/1.4748813>`__.
     """
     if eigs_min_guess is None:
-        eigs_min_guess = arrays.zeros32((config.spindims, config.lmax))
+        eigs_min_guess = arrays.zeros32((config.spindims, config.lmax)) - 100
 
     # define the spacing of the xgrid
     dx = xgrid[1] - xgrid[0]
@@ -145,7 +147,7 @@ def matrix_solve(v, xgrid, bc, solve_type="full", eigs_min_guess=None):
     np.fill_diagonal(p, np.exp(-2 * xgrid))
 
     # see referenced paper for definitions of A and B matrices
-    A = arrays.array32((I_minus - 2 * I_zero + I_plus) / dx ** 2)
+    A = arrays.array32((I_minus - 2 * I_zero + I_plus) / dx**2)
     B = arrays.array32((I_minus + 10 * I_zero + I_plus) / 12)
 
     # von neumann boundary conditions
@@ -529,7 +531,7 @@ def update_orbs(l_eigfuncs, l_eigvals, xgrid, bc, K):
 
     # manually propagate to final point for both boundary conditions
     dx = xgrid[1] - xgrid[0]
-    h = (dx ** 2) / 12.0
+    h = (dx**2) / 12.0
     l_eigfuncs[-1] = (
         (2 - 10 * h * K[-2]) * l_eigfuncs[-2] - (1 + h * K[-3]) * l_eigfuncs[-3]
     ) / (1 + h * K[-1])
@@ -629,7 +631,7 @@ def num_propagate(xgrid, W, e_arr, eigfuncs_init):
     """
     # define some initial grid parameters
     dx = xgrid[1] - xgrid[0]
-    h = (dx ** 2) / 12.0  # a parameter for the numerov integration
+    h = (dx**2) / 12.0  # a parameter for the numerov integration
     N = np.size(xgrid)  # size of grid
 
     # set the eigenfucntions to their initial values
@@ -644,7 +646,7 @@ def num_propagate(xgrid, W, e_arr, eigfuncs_init):
 
     # normalize the wavefunction
     Psi = Psi.transpose()
-    psi_sq = np.exp(-xgrid) * Psi ** 2  # convert from P_nl to X_nl and square
+    psi_sq = np.exp(-xgrid) * Psi**2  # convert from P_nl to X_nl and square
     integrand = 4.0 * np.pi * np.exp(3.0 * xgrid) * psi_sq
     norm = (np.trapz(integrand, x=xgrid)) ** (-0.5)
     Psi_norm = np.einsum("i,ij->ij", norm, Psi)
