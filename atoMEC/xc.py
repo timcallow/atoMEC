@@ -116,7 +116,6 @@ def check_xc_func(xc_code, id_supp):
     else:
         # checks if the libxc code is recognised
         try:
-
             xc_func = pylibxc.LibXCFunctional(xc_code, "unpolarized")
 
             # check the xc family is supported
@@ -276,14 +275,13 @@ def calc_xc(density, xgrid, xcfunc, xctype):
 
     # special case in which xc = -hartree
     elif xcfunc._number == -1:
-
         # import the staticKS module
         from . import staticKS
 
         if xctype == "v_xc":
-            xc_arr[:] = -staticKS.Potential.calc_v_ha(density, xgrid)
+            xc_arr[:] = -staticKS.Potential.calc_v_ha(density, np.exp(xgrid))
         elif xctype == "e_xc":
-            xc_arr = -0.5 * staticKS.Potential.calc_v_ha(density, xgrid)
+            xc_arr = -0.5 * staticKS.Potential.calc_v_ha(density, np.exp(xgrid))
 
     else:
         # lda
@@ -312,13 +310,13 @@ def calc_xc(density, xgrid, xcfunc, xctype):
                 sigma_libxc = np.zeros((config.grid_params["ngrid"], 3))
                 grad_0 = mathtools.grad_func(density[0, :], xgrid)
                 grad_1 = mathtools.grad_func(density[1, :], xgrid)
-                sigma_libxc[:, 0] = grad_0 ** 2
+                sigma_libxc[:, 0] = grad_0**2
                 sigma_libxc[:, 1] = grad_0 * grad_1
-                sigma_libxc[:, 2] = grad_1 ** 2
+                sigma_libxc[:, 2] = grad_1**2
             else:
                 sigma_libxc = np.zeros((config.grid_params["ngrid"], 1))
                 grad = mathtools.grad_func(density[0, :], xgrid)
-                sigma_libxc[:, 0] = grad ** 2
+                sigma_libxc[:, 0] = grad**2
 
             inp = {"rho": rho_libxc, "sigma": sigma_libxc}
 

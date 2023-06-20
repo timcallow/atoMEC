@@ -825,7 +825,7 @@ class Potential:
     def v_ha(self):
         r"""ndarray: The Hartree potential."""
         if np.all(self._v_ha == 0.0):
-            self._v_ha = self.calc_v_ha(self._density, self._xgrid)
+            self._v_ha = self.calc_v_ha(self._density, self._rgrid)
         return self._v_ha
 
     @property
@@ -854,7 +854,7 @@ class Potential:
         return v_en
 
     @staticmethod
-    def calc_v_ha(density, xgrid):
+    def calc_v_ha(density, rgrid):
         r"""
         Construct the Hartree potential (see notes).
 
@@ -862,8 +862,8 @@ class Potential:
         ----------
         density : ndarray
             the total KS density
-        xgrid : ndarray
-            the logarithmic grid
+        rgrid : ndarray
+            the radial grid
 
         Notes
         -----
@@ -879,25 +879,28 @@ class Potential:
             \exp(3x') -\int_x^{\log(r_s)} \mathrm{d}x' n(x') \exp(2x') \Big\}
         """
         # initialize v_ha
-        v_ha = np.zeros_like(xgrid)
+        v_ha = np.zeros_like(rgrid)
 
         # construct the total (sum over spins) density
         rho = np.sum(density, axis=0)
 
         # loop over the x-grid
         # this may be a bottleneck...
-        for i, x0 in enumerate(xgrid):
-            # set up 'upper' and 'lower' parts of the xgrid (x<=x0; x>x0)
-            x_u = xgrid[np.where(x0 < xgrid)]
-            x_l = xgrid[np.where(x0 >= xgrid)]
+        for i, r0 in enumerate(rgrid):
+            # set up 'upper' and 'lower' parts of the rgrid (r<=r0; r>r0)
+            r_u = rgrid[np.where(r0 < rgrid)]
+            r_l = rgrid[np.where(r0 >= rgrid)]
 
             # likewise for the density
-            rho_u = rho[np.where(x0 < xgrid)]
-            rho_l = rho[np.where(x0 >= xgrid)]
+            rho_u = rho[np.where(r0 < rgrid)]
+            rho_l = rho[np.where(r0 >= rgrid)]
 
             # now compute the hartree potential
-            int_l = exp(-x0) * np.trapz(rho_l * np.exp(3.0 * x_l), x_l)
-            int_u = np.trapz(rho_u * np.exp(2 * x_u), x_u)
+            # int_l = exp(-x0) * np.trapz(rho_l * np.exp(3.0 * x_l), x_l)
+            # int_u = np.trapz(rho_u * np.exp(2 * x_u), x_u)
+
+            int_l = np.trapz(rho_l * r_l**2, r_l) / r0
+            int_u = np.trapz(rho_u * r_u, r_u)
 
             # total hartree potential is sum over integrals
             v_ha[i] = 4.0 * pi * (int_l + int_u)
@@ -1369,7 +1372,7 @@ class Energy:
         dens_tot = np.sum(density, axis=0)
 
         # compute the integral
-        v_ha = Potential.calc_v_ha(density, xgrid)
+        v_ha = Potential.calc_v_ha(density, np.exp(xgrid))
         E_ha = 0.5 * mathtools.int_sphere(dens_tot * v_ha, xgrid)
 
         return E_ha
