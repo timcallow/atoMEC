@@ -93,7 +93,6 @@ class ISModel:
         v_shift=config.v_shift,
         write_info=True,
     ):
-
         # Input variables
         self.nele_tot = atom.nele
         self.spinpol = spinpol
@@ -345,7 +344,7 @@ class ISModel:
         if guess:
             v_init = guess_pot
         else:
-            v_init = staticKS.Potential.calc_v_en(xgrid)
+            v_init = staticKS.Potential.calc_v_en(rgrid)
         v_s_old = v_init  # initialize the old potential
         orbs.compute(v_init, config.bc, init=True, eig_guess=True)
 
@@ -361,7 +360,6 @@ class ISModel:
         conv = convergence.SCF(xgrid)
 
         for iscf in range(config.scf_params["maxscf"]):
-
             # print orbitals and occupations
             if verbosity == 1:
                 eigs, occs = writeoutput.SCF.write_orb_info(orbs)

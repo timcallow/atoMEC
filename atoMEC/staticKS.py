@@ -76,8 +76,8 @@ class Orbitals:
     """Class holding the KS orbitals, associated quantities and relevant routines."""
 
     def __init__(self, xgrid):
-
         self._xgrid = xgrid
+        self._rgrid = np.exp(xgrid)
         self._eigfuncs = np.zeros(
             (
                 config.band_params["nkpts"],
@@ -105,6 +105,11 @@ class Orbitals:
         )
         self._kpt_int_weight = np.ones_like(self._eigvals)
         self._occ_weight = np.zeros_like(self._eigvals)
+
+        if config.grid_type == "log":
+            self.solver = numerov.LogSolver()
+        else:
+            sys.exit("Grid type not recognised")
 
     @property
     def eigvals(self):
@@ -216,18 +221,18 @@ class Orbitals:
 
         if eig_guess:
             if bc != "bands":
-                self._eigs_min_guess[0] = numerov.calc_eigs_min(v, self._xgrid, bc)
+                self._eigs_min_guess[0] = self.solver.calc_eigs_min(v, self._xgrid, bc)
             else:
-                self._eigs_min_guess[0] = numerov.calc_eigs_min(
+                self._eigs_min_guess[0] = self.solver.calc_eigs_min(
                     v, self._xgrid, "neumann"
                 )
-                self._eigs_min_guess[1] = numerov.calc_eigs_min(
+                self._eigs_min_guess[1] = self.solver.calc_eigs_min(
                     v, self._xgrid, "dirichlet"
                 )
 
         # solve the KS equations
         if bc != "bands":
-            self._eigfuncs[0], self._eigvals[0] = numerov.matrix_solve(
+            self._eigfuncs[0], self._eigvals[0] = self.solver.matrix_solve(
                 v,
                 self._xgrid,
                 bc,
@@ -236,14 +241,14 @@ class Orbitals:
 
             self._kpt_int_weight = np.ones_like(self._eigvals)
         else:
-            eigfuncs_l, self._eigvals_min = numerov.matrix_solve(
+            eigfuncs_l, self._eigvals_min = self.solver.matrix_solve(
                 v,
                 self._xgrid,
                 "neumann",
                 eigs_min_guess=self._eigs_min_guess[0],
             )
 
-            eigfuncs_u, self._eigvals_max = numerov.matrix_solve(
+            eigfuncs_u, self._eigvals_max = self.solver.matrix_solve(
                 v,
                 self._xgrid,
                 "dirichlet",
@@ -292,7 +297,7 @@ class Orbitals:
         )
 
         # propagate the numerov equation
-        eigfuncs = numerov.calc_wfns_e_grid(self._xgrid, v, e_arr)
+        eigfuncs = self.solver.calc_wfns_e_grid(self._xgrid, v, e_arr)
 
         # eigenvalues by default are equal to the energy band array
         eigvals = e_arr
@@ -520,12 +525,10 @@ class Orbitals:
         fd_dist = np.zeros((len(e_arr_dummy), nspin))
 
         for sp in range(nspin):
-
             # make the total energy array
             e_arr[:, sp] = Orbitals.make_e_arr(eigs_min, eigs_max, sp)
 
             for i, e in enumerate(e_arr[:, sp]):
-
                 # compute delta and (e_+ - e) * (e - e_-)
                 delta = 0.5 * e_gap_arr
                 hub_func = (eigs_max - e) * (e - eigs_min)
@@ -590,7 +593,6 @@ class Orbitals:
         # make the energy array
         e_tot_arr = np.array([])
         for p in range(len(eigs_min) - 1):
-
             # ignore energies below the minimum for bands
             if eigs_min[p] < e_min:
                 continue
@@ -653,6 +655,7 @@ class Density:
 
     def __init__(self, orbs):
         self._xgrid = orbs._xgrid
+        self._rgrid = orbs._rgrid
         self._total = np.zeros((config.spindims, config.grid_params["ngrid"]))
         self._bound = {
             "rho": np.zeros((config.spindims, config.grid_params["ngrid"])),
@@ -684,7 +687,7 @@ class Density:
         """
         if np.all(self._bound["rho"] == 0.0):
             self._bound = self.construct_rho_orbs(
-                self._orbs.eigfuncs, self._orbs.occnums_w, self._xgrid
+                self._orbs.eigfuncs, self._orbs.occnums_w, self._rgrid
             )
         return self._bound
 
@@ -709,7 +712,7 @@ class Density:
         return self._MIS
 
     @staticmethod
-    def construct_rho_orbs(eigfuncs, occnums, xgrid):
+    def construct_rho_orbs(eigfuncs, occnums, rgrid):
         """
         Construct a density from a set of discrete KS orbitals.
 
@@ -719,8 +722,8 @@ class Density:
             the radial eigenfunctions on the xgrid
         occnums : ndarray
             the orbital occupations
-        xgrid : ndarray
-            the logarithmic grid
+        rgrid : ndarray
+            the radial grid
 
         Returns
         -------
@@ -735,7 +738,8 @@ class Density:
         # occnums in atoMEC are defined as (2l+1)*f_{nl}
 
         # R_{nl}(r) = exp(x/2) P_{nl}(x), P(x) are eigfuncs
-        orbs_R = np.exp(-xgrid / 2.0) * eigfuncs
+        # orbs_R = np.exp(-xgrid / 2.0) * eigfuncs
+        orbs_R = rgrid**-0.5 * eigfuncs
         orbs_R_sq = orbs_R**2.0
 
         # sum over the (l,n) dimensions of the orbitals to get the density
@@ -769,7 +773,6 @@ class Density:
 
         # so far only the ideal approximation is implemented
         if config.unbound == "ideal":
-
             # unbound density is constant
             for i in range(config.spindims):
                 prefac = (2.0 / config.spindims) * 1.0 / (sqrt(2) * pi**2)
@@ -788,7 +791,6 @@ class Potential:
     """Class holding the KS potential and the routines required to compute it."""
 
     def __init__(self, density):
-
         self._v_s = np.zeros_like(density.total)
         self._v_en = np.zeros((config.grid_params["ngrid"]))
         self._v_ha = np.zeros((config.grid_params["ngrid"]))
@@ -799,6 +801,7 @@ class Potential:
         }
         self._density = density.total
         self._xgrid = density._xgrid
+        self._rgrid = density._rgrid
 
     @property
     def v_s(self):
@@ -815,7 +818,7 @@ class Potential:
     def v_en(self):
         r"""ndarray: The electron-nuclear potential."""
         if np.all(self._v_en == 0.0):
-            self._v_en = self.calc_v_en(self._xgrid)
+            self._v_en = self.calc_v_en(self._rgrid)
         return self._v_en
 
     @property
@@ -838,7 +841,7 @@ class Potential:
         return self._v_xc
 
     @staticmethod
-    def calc_v_en(xgrid):
+    def calc_v_en(rgrid):
         r"""
         Construct the electron-nuclear potential.
 
@@ -846,7 +849,7 @@ class Potential:
         :math:`v_\mathrm{en} (x) = -Z * \exp(-x)`
         on the logarithmic grid
         """
-        v_en = -config.Z * np.exp(-xgrid)
+        v_en = -config.Z / rgrid
 
         return v_en
 
@@ -884,7 +887,6 @@ class Potential:
         # loop over the x-grid
         # this may be a bottleneck...
         for i, x0 in enumerate(xgrid):
-
             # set up 'upper' and 'lower' parts of the xgrid (x<=x0; x>x0)
             x_u = xgrid[np.where(x0 < xgrid)]
             x_l = xgrid[np.where(x0 >= xgrid)]
@@ -907,7 +909,6 @@ class Energy:
     r"""Class holding information about the KS total energy and relevant routines."""
 
     def __init__(self, orbs, dens):
-
         # inputs
         self._orbs = orbs
         self._dens = dens.total
@@ -1126,7 +1127,6 @@ class Energy:
             e_kin_dens = -0.5 * np.einsum("ijkl,ijklm->jm", occnums, kin_orbs)
 
         elif method == "B":
-
             # compute the gradient of the orbitals
             grad_eigfuncs = np.gradient(eigfuncs, xgrid, axis=-1, edge_order=2)
 
@@ -1335,7 +1335,7 @@ class Energy:
         dens_tot = np.sum(density, axis=0)
 
         # compute the integral
-        v_en = Potential.calc_v_en(xgrid)
+        v_en = Potential.calc_v_en(np.exp(xgrid))
         E_en = mathtools.int_sphere(dens_tot * v_en, xgrid)
 
         return E_en
@@ -1389,7 +1389,6 @@ class EnergyAlt:
     """
 
     def __init__(self, orbs, dens, pot):
-
         self._orbs = orbs
         self._dens = dens.total
         self._xgrid = dens._xgrid

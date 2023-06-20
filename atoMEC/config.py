@@ -12,6 +12,7 @@ unbound = "ideal"  # treatment for unbound electrons
 v_shift = True  # whether to shift the KS potential vertically
 
 # numerical grid for static calculations
+grid_type = "log"
 grid_params = {"ngrid": 1000, "x0": -12, "ngrid_coarse": 300}
 # convergence parameters for static calculations
 conv_params = {
