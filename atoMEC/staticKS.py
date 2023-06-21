@@ -837,7 +837,7 @@ class Potential:
         and exchange + correlation respectively.
         """
         if np.all(self._v_xc["xc"] == 0.0):
-            self._v_xc = xc.v_xc(self._density, self._xgrid, config.xfunc, config.cfunc)
+            self._v_xc = xc.v_xc(self._density, self._rgrid, config.xfunc, config.cfunc)
         return self._v_xc
 
     @staticmethod
@@ -916,6 +916,7 @@ class Energy:
         self._orbs = orbs
         self._dens = dens.total
         self._xgrid = dens._xgrid
+        self._rgrid = dens._rgrid
 
         # initialize attributes
         self._F_tot = 0.0
@@ -994,7 +995,7 @@ class Energy:
         correlation and exchange + correlation respectively
         """
         if self._E_xc["xc"] == 0.0:
-            self._E_xc = xc.E_xc(self._dens, self._xgrid, config.xfunc, config.cfunc)
+            self._E_xc = xc.E_xc(self._dens, self._rgrid, config.xfunc, config.cfunc)
         return self._E_xc
 
     def calc_E_kin(self, orbs, xgrid):
@@ -1395,6 +1396,7 @@ class EnergyAlt:
         self._orbs = orbs
         self._dens = dens.total
         self._xgrid = dens._xgrid
+        self._rgrid = dens._rgrid
         self._pot = pot
 
         # initialize attributes
@@ -1501,7 +1503,7 @@ class EnergyAlt:
         correlation and exchange + correlation respectively
         """
         if self._E_xc["xc"] == 0.0:
-            self._E_xc = xc.E_xc(self._dens, self._xgrid, config.xfunc, config.cfunc)
+            self._E_xc = xc.E_xc(self._dens, self._rgrid, config.xfunc, config.cfunc)
         return self._E_xc
 
     @staticmethod

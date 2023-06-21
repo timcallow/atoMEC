@@ -160,7 +160,7 @@ def set_xc_func(xc_code):
     return xc_func
 
 
-def v_xc(density, xgrid, xfunc, cfunc):
+def v_xc(density, rgrid, xfunc, cfunc):
     """
     Retrive the xc potential.
 
@@ -185,9 +185,9 @@ def v_xc(density, xgrid, xfunc, cfunc):
     _v_xc = {}
 
     # compute the exchange potential
-    _v_xc["x"] = calc_xc(density, xgrid, xfunc, "v_xc")
+    _v_xc["x"] = calc_xc(density, rgrid, xfunc, "v_xc")
     # compute the correlation potential
-    _v_xc["c"] = calc_xc(density, xgrid, cfunc, "v_xc")
+    _v_xc["c"] = calc_xc(density, rgrid, cfunc, "v_xc")
 
     # sum to get the total xc potential
     _v_xc["xc"] = _v_xc["x"] + _v_xc["c"]
@@ -195,7 +195,7 @@ def v_xc(density, xgrid, xfunc, cfunc):
     return _v_xc
 
 
-def E_xc(density, xgrid, xfunc, cfunc):
+def E_xc(density, rgrid, xfunc, cfunc):
     """
     Retrieve the xc energy.
 
@@ -223,12 +223,12 @@ def E_xc(density, xgrid, xfunc, cfunc):
     dens_tot = np.sum(density, axis=0)
 
     # compute the exchange energy
-    ex_libxc = calc_xc(density, xgrid, xfunc, "e_xc")
-    _E_xc["x"] = mathtools.int_sphere(ex_libxc * dens_tot, xgrid)
+    ex_libxc = calc_xc(density, rgrid, xfunc, "e_xc")
+    _E_xc["x"] = mathtools.int_sphere(ex_libxc * dens_tot, rgrid, gridtype="lin")
 
     # compute the correlation energy
-    ec_libxc = calc_xc(density, xgrid, cfunc, "e_xc")
-    _E_xc["c"] = mathtools.int_sphere(ec_libxc * dens_tot, xgrid)
+    ec_libxc = calc_xc(density, rgrid, cfunc, "e_xc")
+    _E_xc["c"] = mathtools.int_sphere(ec_libxc * dens_tot, rgrid, gridtype="lin")
 
     # sum to get the total xc potential
     _E_xc["xc"] = _E_xc["x"] + _E_xc["c"]
@@ -236,7 +236,7 @@ def E_xc(density, xgrid, xfunc, cfunc):
     return _E_xc
 
 
-def calc_xc(density, xgrid, xcfunc, xctype):
+def calc_xc(density, rgrid, xcfunc, xctype):
     """
     Compute the x/c energy density or potential depending on `xctype` input.
 
@@ -279,9 +279,9 @@ def calc_xc(density, xgrid, xcfunc, xctype):
         from . import staticKS
 
         if xctype == "v_xc":
-            xc_arr[:] = -staticKS.Potential.calc_v_ha(density, np.exp(xgrid))
+            xc_arr[:] = -staticKS.Potential.calc_v_ha(density, rgrid)
         elif xctype == "e_xc":
-            xc_arr = -0.5 * staticKS.Potential.calc_v_ha(density, np.exp(xgrid))
+            xc_arr = -0.5 * staticKS.Potential.calc_v_ha(density, rgrid)
 
     else:
         # lda
@@ -308,14 +308,14 @@ def calc_xc(density, xgrid, xcfunc, xctype):
             # preparing the sigma array needed for libxc gga calculation
             if config.spindims == 2:
                 sigma_libxc = np.zeros((config.grid_params["ngrid"], 3))
-                grad_0 = mathtools.grad_func(density[0, :], xgrid)
-                grad_1 = mathtools.grad_func(density[1, :], xgrid)
+                grad_0 = mathtools.grad_func(density[0, :], rgrid, gridtype="lin")
+                grad_1 = mathtools.grad_func(density[1, :], rgrid, gridtype="lin")
                 sigma_libxc[:, 0] = grad_0**2
                 sigma_libxc[:, 1] = grad_0 * grad_1
                 sigma_libxc[:, 2] = grad_1**2
             else:
                 sigma_libxc = np.zeros((config.grid_params["ngrid"], 1))
-                grad = mathtools.grad_func(density[0, :], xgrid)
+                grad = mathtools.grad_func(density[0, :], rgrid, gridtype="lin")
                 sigma_libxc[:, 0] = grad**2
 
             inp = {"rho": rho_libxc, "sigma": sigma_libxc}
@@ -329,7 +329,7 @@ def calc_xc(density, xgrid, xcfunc, xctype):
             elif xctype == "v_xc":
                 if config.spindims == 2:
                     xc_arr = out["vrho"].transpose() - gga_pot_chainrule(
-                        out, grad_0, grad_1, xgrid, 2
+                        out, grad_0, grad_1, rgrid, 2
                     )
                 else:
                     xc_arr = np.zeros((config.grid_params["ngrid"], config.spindims))
@@ -337,14 +337,14 @@ def calc_xc(density, xgrid, xcfunc, xctype):
                     # from the libxc calculation:
                     for i in range(config.spindims):
                         xc_arr[:, i] = out["vrho"].transpose() - gga_pot_chainrule(
-                            out, grad, grad, xgrid, config.spindims
+                            out, grad, grad, rgrid, config.spindims
                         )
                         xc_arr = xc_arr.transpose()
 
     return xc_arr
 
 
-def gga_pot_chainrule(libxc_output, grad_0, grad_1, xgrid, spindims):
+def gga_pot_chainrule(libxc_output, grad_0, grad_1, rgrid, spindims):
     r"""
     Calculate a component for the spin-polarized gga xc potential.
 
@@ -400,27 +400,22 @@ def gga_pot_chainrule(libxc_output, grad_0, grad_1, xgrid, spindims):
             grad_1 * libxc_output["vsigma"].transpose()[2]
             + grad_0 * libxc_output["vsigma"].transpose()[1]
         )
-        # combining the 2 and taking the divergence (in spherical coordinates)
         gga_addition2 = 2.0 * np.array(
             (
-                np.exp(-2.0 * xgrid)
-                * mathtools.grad_func(np.exp(2.0 * xgrid) * term1, xgrid),
-                np.exp(-2.0 * xgrid)
-                * mathtools.grad_func(np.exp(2.0 * xgrid) * term2, xgrid),
+                mathtools.grad_func(term1 * rgrid**2, rgrid, gridtype="lin")
+                / rgrid**2,
+                mathtools.grad_func(term2 * rgrid**2, rgrid, gridtype="lin")
+                / rgrid**2,
             )
         )
     else:
         gga_addition2 = (
             2.0
-            * np.exp(-2.0 * xgrid)
             * mathtools.grad_func(
-                (
-                    2.0
-                    * np.exp(2.0 * xgrid)
-                    * grad_0
-                    * libxc_output["vsigma"].transpose()[0]
-                ),
-                xgrid,
+                (2.0 * grad_0 * rgrid**2 * libxc_output["vsigma"].transpose()[0]),
+                rgrid,
+                gridtype="lin",
             )
+            / rgrid**2
         )
     return gga_addition2

@@ -59,7 +59,7 @@ def normalize_orbs(eigfuncs_x, xgrid):
     return eigfuncs_x_norm
 
 
-def int_sphere(fx, xgrid):
+def int_sphere(fx, xgrid, gridtype="log"):
     r"""
     Compute integral over sphere defined by input grid.
 
@@ -83,7 +83,10 @@ def int_sphere(fx, xgrid):
 
     .. math:: I = 4 \pi \int \mathrm{d}x\ e^{3x} f(x)
     """
-    func_int = 4.0 * pi * np.exp(3.0 * xgrid) * fx
+    if gridtype == "log":
+        func_int = 4.0 * pi * np.exp(3.0 * xgrid) * fx
+    else:
+        func_int = 4.0 * pi * xgrid**2 * fx
     I_sph = np.trapz(func_int, xgrid)
 
     return I_sph
@@ -470,7 +473,7 @@ def lorentzian(x, x0, gamma):
     return lorentzian_
 
 
-def grad_func(den, xgrid):
+def grad_func(den, xgrid, gridtype="log"):
     """
     Compute the gradient of a function on the logarithmic grid.
 
@@ -488,5 +491,7 @@ def grad_func(den, xgrid):
     grad : ndarray
         The gradient of the density w.r.t. the radial grid.
     """
-    grad = (np.exp(-xgrid)) * np.gradient(den, xgrid)
+    grad = np.gradient(den, xgrid)
+    if gridtype == "log":
+        grad *= np.exp(-xgrid)
     return grad
