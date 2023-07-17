@@ -44,10 +44,21 @@ class Solver:
         The grid type (sqrt or log)
     """
 
-    def __init__(self, grid_type):
+    def __init__(self, grid_type, solve_method):
         self.grid_type = grid_type
+        self.solve_method = solve_method
 
-    def calc_eigs_min(self, v, xgrid, bc):
+    def solve(self, v, xgrid, bc, eigs_min_guess=None, solve_type="full"):
+        """Wrapper to solve either with matrix or linear method."""
+        if self.solve_method == "matrix":
+            return self.matrix_solve(v, xgrid, bc, eigs_min_guess=eigs_min_guess)
+        elif self.solve_method == "linear":
+            eigvals_guess = self.calc_eigs_min(v, xgrid, bc)
+            return self.linear_solve(v, xgrid, bc, eigvals_guess)
+        else:
+            sys.exit("solver not recognized")
+
+    def calc_eigs_min(self, v, xgrid, bc, solve_type="guess_full"):
         """
         Compute an estimate for the minimum values of the KS eigenvalues.
 
@@ -78,7 +89,9 @@ class Solver:
         v_coarse = func_interp(xgrid_coarse)
 
         # full diagonalization to estimate the lowest eigenvalues
-        eigs_min = self.matrix_solve(v_coarse, xgrid_coarse, bc, solve_type="guess")[1]
+        eigs_min = self.matrix_solve(v_coarse, xgrid_coarse, bc, solve_type=solve_type)[
+            1
+        ]
 
         return eigs_min
 
@@ -322,6 +335,17 @@ class Solver:
 
             return eigfuncs_null, eigs_guess
 
+        elif solve_type == "guess_full":
+            eigvals_flat = np.zeros((pmax, config.nmax))
+            for q in range(pmax):
+                eigvals_flat[q] = X[q][1][: config.nmax]
+            eigfuncs_null = X[:][0]
+
+            # unflatten eigfuncs / eigvals so they return to original shape
+            eigvals = eigvals_flat.reshape(config.spindims, config.lmax, config.nmax)
+
+            return eigfuncs_null, eigvals
+
     def KS_matsolve_serial(self, T, B, v, xgrid, bc, solve_type, eigs_min_guess):
         """
         Solve the KS equations via matrix diagonalization in serial.
@@ -419,6 +443,17 @@ class Solver:
                     # dummy variable for the null eigenfucntions
                     eigfuncs_null = eigfuncs
 
+                elif solve_type == "guess_full":
+                    # estimate the lowest eigenvalues for a given value of l
+                    eigs_up = linalg.eigvals(H, b=B, check_finite=False)
+
+                    # sort the eigenvalues to find the lowest
+                    idr = np.argsort(eigs_up)
+                    eigs_guess[i, l] = np.array(eigs_up[idr].real)[:nmax]
+
+                    # dummy variable for the null eigenfucntions
+                    eigfuncs_null = eigfuncs
+
         if solve_type == "full":
             return eigfuncs, eigvals
         else:
@@ -510,6 +545,18 @@ class Solver:
             # sort the eigenvalues to find the lowest
             idr = np.argsort(evals)
             evals = np.array(evals[idr].real)[0]
+
+            # dummy eigenvector for return statement
+            evecs_null = np.zeros((N))
+
+            return evecs_null, evals
+
+        elif solve_type == "guess_full":
+            evals = linalg.eigvals(H, b=B, check_finite=False)
+
+            # sort the eigenvalues to find the lowest
+            idr = np.argsort(evals)
+            evals = np.array(evals[idr].real)
 
             # dummy eigenvector for return statement
             evecs_null = np.zeros((N))
@@ -707,3 +754,181 @@ class Solver:
         Psi_norm = np.einsum("i,ij->ij", norm, Psi)
 
         return Psi_norm
+
+    # @writeoutput.timing
+    def linear_solve(
+        self,
+        v,
+        xgrid,
+        bc,
+        eigs_guess,
+        max_iter_bisect=100,
+        tol=config.conv_params["eigtol"],
+        max_iter_init=100,
+    ):
+        r"""
+        Solve the Numerov equation using the standard linear approach.
+
+        Starting from a guess given by a diagonization of the Hamiltonian on a coarse grid,
+        it uses a bisection method to get the actual eigenvalues.
+
+        Parameters
+        ----------
+        v : ndarray
+            the KS potential on the log grid
+        xgrid : ndarray
+            the logarithmic grid
+        bc : str
+            the boundary condition ("dirichlet" or "neumann")
+        eigs_guess : ndarray
+            input guess for the eigenvalues
+            should have dimensions `config.spindims` * `config.lmax` * `config.nmax`
+        max_iter_bisect : int, optional
+            maximum number of iterations for bisection
+        tol : float, optional
+            tolerance for convergence of eigenvalues
+        max_iter_init : int, optional
+            maximum number of iterations to find energy range
+
+        Returns
+        -------
+        eigfuncs, E_mid: tuple of ndarrays
+            the converged eigenfucntions and eigenvalues
+        """
+        eigvals_converged = np.zeros_like(eigs_guess)
+        eigfuncs = np.zeros((*eigs_guess.shape, len(xgrid)))
+
+        E_bracket = 0.1 * np.log(2 + eigs_guess - np.amin(eigs_guess))
+        E_upper = eigs_guess + E_bracket
+        E_lower = eigs_guess - E_bracket
+
+        deriv_diff_l = self.calc_wfns_no_kpts(xgrid, v, E_lower, bc, wfn=False)
+        deriv_diff_u = self.calc_wfns_no_kpts(xgrid, v, E_upper, bc, wfn=False)
+        counter = 1
+        while (
+            np.any(np.sign(deriv_diff_u * deriv_diff_l) > 0) and counter < max_iter_init
+        ):
+            E_upper = np.where(
+                np.sign(deriv_diff_u * deriv_diff_l) < 0, E_upper, E_upper + E_bracket
+            )
+            E_lower = np.where(
+                np.sign(deriv_diff_u * deriv_diff_l) < 0, E_lower, E_lower - E_bracket
+            )
+            deriv_diff_l = self.calc_wfns_no_kpts(xgrid, v, E_lower, bc, wfn=False)
+            deriv_diff_u = self.calc_wfns_no_kpts(xgrid, v, E_upper, bc, wfn=False)
+            counter += 1
+
+        if counter == max_iter_init:
+            print("Warning: No eigenvalue bracket found. Results may be inaccurate.")
+
+        E_mid_old = E_upper
+        for i in range(1, max_iter_bisect + 1):
+            E_mid = (E_upper + E_lower) / 2
+            deriv_diff_l = self.calc_wfns_no_kpts(xgrid, v, E_lower, bc, wfn=False)
+            deriv_diff_mid = self.calc_wfns_no_kpts(xgrid, v, E_mid, bc, wfn=False)
+
+            if np.amax(np.abs(E_mid_old - E_mid)) < tol:
+                break
+
+            E_upper = np.where(deriv_diff_mid * deriv_diff_l < 0, E_mid, E_upper)
+            E_lower = np.where(deriv_diff_mid * deriv_diff_l > 0, E_mid, E_lower)
+            E_mid_old = E_mid
+
+        if i == max_iter_bisect:
+            print("Warning: eigenvalues not converged!")
+
+        # propagate the eigenfunctions
+        eigfuncs = self.calc_wfns_no_kpts(xgrid, v, E_mid, bc, wfn=True)
+
+        return eigfuncs, E_mid
+
+    def calc_wfns_no_kpts(self, xgrid, v, e_arr, bc, wfn=False):
+        """
+        Compute all KS orbitals defined on the energy grid.
+
+        This routine is used to propagate a set of orbitals defined with a fixed
+        set of energies. It is used for the `bands` boundary condition in the
+        `models.ISModel` class.
+
+        Parameters
+        ----------
+        xgrid : ndarray
+            the spatial (logarithmic) grid
+        v : ndarray
+            the KS potential
+        e_arr : ndarray
+            the energy grid
+        Returns
+        -------
+        eigfuncs_e : ndarray
+            the KS orbitals with defined energies
+        """
+        # size of spaital grid
+        N = np.size(xgrid)
+
+        dx = xgrid[1] - xgrid[0]
+        x0 = xgrid[0]
+
+        # dimensions of e_arr
+        spindims, lmax, nmax = np.shape(e_arr)
+
+        # flatten energy array
+        e_arr_flat = e_arr.flatten()
+
+        # initialize the W (potential) and eigenfunction arrays
+        W_arr = np.zeros((N, spindims, lmax, nmax))
+        eigfuncs_init = np.zeros_like(W_arr)
+
+        # set up the flattened potential matrix
+        # W = -2*exp(x)*(v - E) - (l + 1/2)^2
+        # first set up the v - E array (matching dimensions)
+        v_E_arr = np.transpose(v)[:, :, np.newaxis, np.newaxis] - e_arr[np.newaxis, :]
+
+        # muptiply by -2*exp(x) term
+        if self.grid_type == "log":
+            v_E_arr = np.einsum("i,iklm->iklm", -2.0 * np.exp(2.0 * xgrid), v_E_arr)
+        else:
+            v_E_arr = np.einsum("i,iklm->iklm", -8 * xgrid**2, v_E_arr)
+
+        # add (l+1/2)^2 term and initial condition
+        for l in range(lmax):
+            if self.grid_type == "log":
+                l_term = -((l + 0.5) ** 2)
+                eigfuncs_init[1, :, l] = np.exp((l + 0.5) * (x0 + dx))
+            else:
+                l_term = (-4 * l * (l + 1) / (xgrid**2) - 3 / (4 * xgrid**2))[
+                    :, np.newaxis, np.newaxis
+                ]
+                eigfuncs_init[1, :, l] = max((x0 + dx) ** (2 * l + 1), 1e-300)
+            W_arr[:, :, l] = v_E_arr[:, :, l] + l_term
+
+        # flatten arrays for input to numerov propagation
+        W_flat = W_arr.reshape((N, len(e_arr_flat)))
+        eigfuncs_init_flat = eigfuncs_init.reshape((N, len(e_arr_flat)))
+
+        # solve numerov eqn for the wfns
+        eigfuncs_flat = self.num_propagate(
+            xgrid, W_flat, e_arr_flat, eigfuncs_init_flat, self.grid_type
+        )
+
+        if wfn:
+            eigfuncs = eigfuncs_flat.reshape((spindims, lmax, nmax, N))
+            return eigfuncs
+
+        else:
+            if bc == "dirichlet":
+                deriv_diff_flat = eigfuncs_flat[:, -1]
+            else:
+                deriv_X_R = (eigfuncs_flat[:, -1] - eigfuncs_flat[:, -2]) / dx
+                if self.grid_type == "log":
+                    deriv_diff_flat = np.exp(-1.5 * xgrid[-1]) * (
+                        -0.5 * eigfuncs_flat[:, -1] + deriv_X_R
+                    )
+                else:
+                    deriv_diff_flat = deriv_X_R / (2 * xgrid[-1])
+                    # print(deriv_diff_flat)
+
+            # reshape the eigenfucntions
+            deriv_diff = deriv_diff_flat.reshape((spindims, lmax, nmax))
+
+            return deriv_diff

@@ -102,7 +102,7 @@ def sqrt_grid(s_r):
 class Orbitals:
     """Class holding the KS orbitals, associated quantities and relevant routines."""
 
-    def __init__(self, xgrid, grid_type):
+    def __init__(self, xgrid, grid_type, solve_method):
         self._xgrid = xgrid
         self._eigfuncs = np.zeros(
             (
@@ -132,6 +132,7 @@ class Orbitals:
         self._kpt_int_weight = np.ones_like(self._eigvals)
         self._occ_weight = np.zeros_like(self._eigvals)
         self.grid_type = grid_type
+        self.solve_method = solve_method
 
     @property
     def eigvals(self):
@@ -241,41 +242,39 @@ class Orbitals:
         # set v to equal the input potential
         v[:] = potential
 
-        if self.grid_type == "log":
-            solver = numerov.Solver("log")
-        else:
-            solver = numerov.Solver("sqrt")
+        solver = numerov.Solver(self.grid_type, self.solve_method)
 
         if eig_guess:
             if bc != "bands":
-                self._eigs_min_guess[0] = solver.calc_eigs_min(v, self._xgrid, bc)
+                self._eigs_min_guess[0] = solver.calc_eigs_min(
+                    v, self._xgrid, bc, solve_type="guess"
+                )
             else:
                 self._eigs_min_guess[0] = solver.calc_eigs_min(
-                    v, self._xgrid, "neumann"
+                    v, self._xgrid, "neumann", solve_type="guess"
                 )
                 self._eigs_min_guess[1] = solver.calc_eigs_min(
-                    v, self._xgrid, "dirichlet"
+                    v, self._xgrid, "dirichlet", solve_type="guess"
                 )
 
         # solve the KS equations
         if bc != "bands":
-            self._eigfuncs[0], self._eigvals[0] = solver.matrix_solve(
+            eigfuncs_mat, eigvals_mat = solver.solve(
                 v,
                 self._xgrid,
                 bc,
                 eigs_min_guess=self._eigs_min_guess[0],
             )
-
             self._kpt_int_weight = np.ones_like(self._eigvals)
         else:
-            eigfuncs_l, self._eigvals_min = solver.matrix_solve(
+            eigfuncs_l, self._eigvals_min = solver.solve(
                 v,
                 self._xgrid,
                 "neumann",
                 eigs_min_guess=self._eigs_min_guess[0],
             )
 
-            eigfuncs_u, self._eigvals_max = solver.matrix_solve(
+            eigfuncs_u, self._eigvals_max = solver.solve(
                 v,
                 self._xgrid,
                 "dirichlet",

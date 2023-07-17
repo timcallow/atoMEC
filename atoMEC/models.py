@@ -222,6 +222,7 @@ class ISModel:
         band_params={},
         force_bound=[],
         grid_type="log",
+        solve_method="matrix",
         verbosity=0,
         write_info=True,
         write_density=True,
@@ -333,6 +334,7 @@ class ISModel:
         config.scf_params = check_inputs.EnergyCalcs.check_scf_params(scf_params)
         config.band_params = check_inputs.EnergyCalcs.check_band_params(band_params)
         config.grid_type = grid_type
+        config.solve_method = solve_method
 
         # experimental change
         config.force_bound = force_bound
@@ -344,7 +346,7 @@ class ISModel:
             xgrid, rgrid = staticKS.sqrt_grid(sqrt(config.r_s))
 
         # initialize orbitals
-        orbs = staticKS.Orbitals(xgrid, grid_type)
+        orbs = staticKS.Orbitals(xgrid, grid_type, solve_method)
         # use coulomb potential or input given potential as initial guess
         if guess:
             v_init = guess_pot
