@@ -121,6 +121,15 @@ def calc_pressure_dict(atom, model, nconv, ngrid, nkpts):
         "P_vir_corr_A": P_vir_corr_A * ha_to_gpa,
         "P_vir_nocorr_A": P_vir_nocorr_A * ha_to_gpa,
         "P_id": P_elec_id * ha_to_gpa,
+    }
+
+    full_dict = {
+        "P_fd_A": P_fd_A * ha_to_gpa,
+        "P_st_tr": P_st_tr * ha_to_gpa,
+        "P_st_rr": P_st_rr * ha_to_gpa,
+        "P_vir_corr_A": P_vir_corr_A * ha_to_gpa,
+        "P_vir_nocorr_A": P_vir_nocorr_A * ha_to_gpa,
+        "P_id": P_elec_id * ha_to_gpa,
         "MIS": MIS,
         "n_R": n_R,
         "V_R": V_R,
@@ -130,7 +139,7 @@ def calc_pressure_dict(atom, model, nconv, ngrid, nkpts):
         "chem_pot": chem_pot[0],
     }
 
-    return P_dict
+    return P_dict, full_dict
 
 
 def compute_relative_differences(A, B):
@@ -154,23 +163,38 @@ def compute_relative_differences(A, B):
     return relative_differences
 
 
-def are_differences_below_threshold(
-    relative_differences, threshold_hard, threshold_soft
-):
-    below_threshold_count = 0
+def are_differences_below_threshold(pressure_dict, full_dict, hard_thresh, soft_thresh):
+    # Counters for values that are no more than 1 above the thresholds
+    pressure_counter = 0
+    full_counter = 0
 
-    for value in relative_differences.values():
-        if value < threshold_hard:
-            below_threshold_count += 1
+    # Check the values in pressure_dict
+    for value in pressure_dict.values():
+        if value < hard_thresh:
+            continue
+        elif value <= hard_thresh * 1.2:
+            pressure_counter += 1
+        else:
+            return False
 
-    if below_threshold_count == len(relative_differences):
-        return True
-    elif below_threshold_count == len(relative_differences) - 1:
-        max_value = max(relative_differences.values())
-        if max_value < threshold_soft:
-            return True
+    # If more than one value is no more than 1 above hard_thresh, return False
+    if pressure_counter > 1:
+        return False
 
-    return False
+    # Check the values in full_dict
+    for value in full_dict.values():
+        if value < soft_thresh:
+            continue
+        elif value <= soft_thresh * 1.2:
+            full_counter += 1
+        else:
+            return False
+
+    # If more than one value is no more than 1 above soft_thresh, return False
+    if full_counter > 1:
+        return False
+
+    return True
 
 
 def gradient(f, xgrid):
@@ -178,7 +202,6 @@ def gradient(f, xgrid):
 
 
 # P_dict = calc_pressure_dict(atom, model, 1e-4, 1000, 30)
-
 
 # increase orbitals to convergence
 while nmax <= nmax_lim:
@@ -216,53 +239,67 @@ lmax += lorbs_buffer
 
 ngrid = ngrid_init
 
-P_dict_inner = calc_pressure_dict(atom, model, nconv_init, ngrid_init, kpts_init)
+P_dict_inner, full_dict_inner = calc_pressure_dict(
+    atom, model, nconv_init, ngrid_init, kpts_init
+)
 nconv = nconv_init
 while nconv >= 1e-7:
     nconv /= 10
-    P_dict = calc_pressure_dict(atom, model, nconv, ngrid, kpts_init)
-    diffs_inner = compute_relative_differences(P_dict, P_dict_inner)
+    P_dict, full_dict = calc_pressure_dict(atom, model, nconv, ngrid, kpts_init)
+    P_diffs_inner = compute_relative_differences(P_dict, P_dict_inner)
+    full_diffs_inner = compute_relative_differences(full_dict, full_dict_inner)
     P_dict_inner = P_dict
-    print(nconv, diffs_inner)
+    print(nconv, full_diffs_inner)
 
-    if are_differences_below_threshold(diffs_inner, conv_hardlim, conv_softlim):
-        print("break")
+    if are_differences_below_threshold(
+        P_diffs_inner, full_diffs_inner, conv_hardlim, conv_softlim
+    ):
         break
 
 ngrid = ngrid_init
 while ngrid < 30000:
     ngrid = int(ngrid * 1.5)
     P_dict_outer = P_dict
-    P_dict = calc_pressure_dict(atom, model, nconv, ngrid, kpts_init)
-    diffs_outer = compute_relative_differences(P_dict, P_dict_outer)
-    print(ngrid, diffs_outer)
+    full_dict_outer = full_dict
+    P_dict, full_dict = calc_pressure_dict(atom, model, nconv, ngrid, kpts_init)
+    P_diffs_outer = compute_relative_differences(P_dict, P_dict_outer)
+    full_diffs_outer = compute_relative_differences(full_dict, full_dict_outer)
+    print(ngrid, full_diffs_outer)
 
-    if are_differences_below_threshold(diffs_outer, conv_hardlim, conv_softlim):
-        print("break")
+    if are_differences_below_threshold(
+        P_diffs_outer, full_diffs_outer, conv_hardlim, conv_softlim
+    ):
         break
 
 nkpts = kpts_init
 while nkpts < 550:
     nkpts = int(nkpts * 1.5)
     P_dict_outer = P_dict
-    P_dict = calc_pressure_dict(atom, model, nconv, ngrid, nkpts)
-    diffs_outer = compute_relative_differences(P_dict, P_dict_outer)
-    print(nkpts, diffs_outer)
+    full_dict_outer = full_dict
+    P_dict, full_dict = calc_pressure_dict(atom, model, nconv, ngrid, nkpts)
+    P_diffs_outer = compute_relative_differences(P_dict, P_dict_outer)
+    full_diffs_outer = compute_relative_differences(full_dict, full_dict_outer)
+    print(nkpts, full_diffs_outer)
 
-    if are_differences_below_threshold(diffs_outer, conv_hardlim, conv_softlim):
+    if are_differences_below_threshold(
+        P_diffs_outer, full_diffs_outer, conv_hardlim, conv_softlim
+    ):
         break
 
 # ion pressure
-P_dict["P_ion"] = pressure.ions_ideal(atom) * ha_to_gpa
-P_dict["rho"] = density
-P_dict["T"] = temperature
-P_dict["Z"] = atom.at_chrg
+full_dict["P_ion"] = pressure.ions_ideal(atom) * ha_to_gpa
+full_dict["rho"] = density
+full_dict["T"] = temperature
+full_dict["Z"] = atom.at_chrg
 
 # save the converged results
 conv_dict = {"ngrid": ngrid, "nkpts": nkpts, "nconv": nconv, "nmax": nmax, "lmax": lmax}
 
-with open("conv_dict.pkl", "wb") as f:
+print(full_dict)
+print(conv_dict)
+
+with open("conv_params.pkl", "wb") as f:
     pkl.dump(conv_dict, f, protocol=pkl.HIGHEST_PROTOCOL)
 
-with open("pressure_dict.pkl", "wb") as f:
-    pkl.dump(P_dict, f, protocol=pkl.HIGHEST_PROTOCOL)
+with open("output.pkl", "wb") as f:
+    pkl.dump(full_dict, f, protocol=pkl.HIGHEST_PROTOCOL)
