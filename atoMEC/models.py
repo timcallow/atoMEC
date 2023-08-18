@@ -102,6 +102,7 @@ class ISModel:
         self.bc = bc
         self.unbound = unbound
         self.v_shift = v_shift
+        self.atom = atom
 
         # print the information
         if write_info:
@@ -234,6 +235,7 @@ class ISModel:
         dos_file="dos.csv",
         guess=False,
         guess_pot=0,
+        convergence_func=None,
     ):
         r"""
         Run a self-consistent calculation to minimize the Kohn-Sham free energy.
@@ -412,8 +414,26 @@ class ISModel:
                 print(scf_string)
 
             # exit if converged
-            if conv_vals["complete"]:
-                break
+            if convergence_func is not None:
+                scf_dict = {
+                    "energy": energy,
+                    "density": rho,
+                    "potential": pot,
+                    "orbitals": orbs,
+                }
+                if iscf < 3:
+                    scf_dict_old = scf_dict
+                else:
+                    converged = convergence_func(
+                        scf_dict, scf_dict_old, self.atom, self
+                    )
+                    scf_dict_old = scf_dict
+                    if converged:
+                        break
+
+            else:
+                if conv_vals["complete"]:
+                    break
 
         # compute final density and energy
         rho = staticKS.Density(orbs)
@@ -445,6 +465,7 @@ class ISModel:
             "density": rho,
             "potential": pot,
             "orbitals": orbs,
+            "conv_vals": conv_vals,
         }
 
         return output_dict
