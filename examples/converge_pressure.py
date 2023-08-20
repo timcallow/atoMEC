@@ -22,7 +22,7 @@ config.numcores = -1
 
 atom_species = "H"  # helium
 density = 0.000983  # Wigner-Seitz radius of room-temp Be
-temperature = 10.77  # temperature in eV
+temperature = 43.77  # temperature in eV
 grid_type = "sqrt"
 
 # initialize the atom object
@@ -42,17 +42,17 @@ nmax_lim = 200
 lmax_lim = 300
 
 # how much to increase by
-nmax_diff = 5
+nmax_diff = 3
 lmax_diff = 5
 
 # buffer for orbitals
 # if increasing grid size or allowing more scf cycles requires more orbitals
-norbs_buffer = 3
-lorbs_buffer = 3
+norbs_buffer = 2
+lorbs_buffer = 4
 
 # initial orbitals
-nmax = 10
-lmax = 30
+nmax = 4
+lmax = 4
 
 # calculations considered converged provided all occupations are below this
 threshold = 1e-3
@@ -65,18 +65,17 @@ def calc_pressure_dict(atom, model, nconv, ngrid, nkpts):
         nmax,
         lmax,
         grid_params={"ngrid": ngrid, "s0": s0},
-        conv_params={"nconv": nconv, "vconv": 1e-1, "econv": 1e-2},
+        conv_params={"nconv": 1e-6, "vconv": 1e-1, "econv": 1e-2},
         band_params={"nkpts": nkpts},
         scf_params={"maxscf": 30},
-        write_info=False,
+        write_info=True,
         grid_type=grid_type,
-        convergence_func=converge_pressure,
     )
 
     orbs = out["orbitals"]
     pot = out["potential"]
     dens = out["density"]
-    nconv = out["conv_vals"]["drho"]
+    # nconv = max(out["conv_vals"]["drho"][0], 1e-7)
 
     MIS = dens.MIS[0]
     n_R = dens.total[0, -1]
@@ -91,8 +90,8 @@ def calc_pressure_dict(atom, model, nconv, ngrid, nkpts):
         model,
         orbs,
         pot,
-        method="A",
-        conv_params={"nconv": nconv[0], "vconv": 1e-1, "econv": 1e-2},
+        method="B",
+        conv_params={"nconv": 1e-6, "vconv": 1e-1, "econv": 1e-2},
         write_info=True,
     )
 
@@ -104,10 +103,10 @@ def calc_pressure_dict(atom, model, nconv, ngrid, nkpts):
 
     # compute virial pressure
     P_vir_corr_A = pressure.virial(
-        atom, model, out["energy"], dens, orbs, pot, use_correction=True, method="A"
+        atom, model, out["energy"], dens, orbs, pot, use_correction=True, method="B"
     )
     P_vir_nocorr_A = pressure.virial(
-        atom, model, out["energy"], dens, orbs, pot, use_correction=False, method="A"
+        atom, model, out["energy"], dens, orbs, pot, use_correction=False, method="B"
     )
 
     # compute ideal pressure
@@ -202,8 +201,10 @@ def are_differences_below_threshold(pressure_dict, full_dict, hard_thresh, soft_
 def converge_pressure(scf_out, scf_out_old, atom, model):
     P_dict, full_dict = calc_pressure_dict_small(scf_out, atom, model)
     P_dict_old, full_dict_old = calc_pressure_dict_small(scf_out_old, atom, model)
+    P_diffs = compute_relative_differences(P_dict, P_dict_old)
+    full_diffs = compute_relative_differences(full_dict, full_dict_old)
     return are_differences_below_threshold(
-        P_dict, full_dict, conv_hardlim, conv_softlim
+        P_diffs, full_diffs, conv_hardlim, conv_softlim
     )
 
 
@@ -271,10 +272,16 @@ def gradient(f, xgrid):
 
 # P_dict = calc_pressure_dict(atom, model, 1e-4, 1000, 30)
 
-# increase orbitals to convergence
+
+nmax += norbs_buffer
+lmax += lorbs_buffer
+
+ngrid = ngrid_init
+
 while nmax <= nmax_lim:
     breakloop = False
     while lmax <= lmax_lim:
+        print(threshold, nmax, lmax)
         try:
             out_test = model.CalcEnergy(
                 nmax,
@@ -302,38 +309,71 @@ while nmax <= nmax_lim:
     if breakloop:
         break
 
-nmax += norbs_buffer
-lmax += lorbs_buffer
-
-ngrid = ngrid_init
-
-# P_dict_inner, full_dict_inner = calc_pressure_dict(
-#     atom, model, nconv_init, ngrid_init, kpts_init
-# )
-# nconv = nconv_init
-# while nconv >= 1e-7:
-#     nconv /= 10
-#     P_dict, full_dict = calc_pressure_dict(atom, model, nconv, ngrid, kpts_init)
-#     P_diffs_inner = compute_relative_differences(P_dict, P_dict_inner)
-#     full_diffs_inner = compute_relative_differences(full_dict, full_dict_inner)
-#     P_dict_inner = P_dict
-#     print(nconv, full_diffs_inner)
-
-#     if are_differences_below_threshold(
-#         P_diffs_inner, full_diffs_inner, conv_hardlim, conv_softlim
-#     ):
-#         break
-
-ngrid = ngrid_init
 P_dict, full_dict, nconv = calc_pressure_dict(atom, model, 1e-4, ngrid, kpts_init)
-while ngrid < 30000:
+while threshold > 1e-6:
+    threshold /= 10
+    # increase orbitals to convergence
+    while nmax <= nmax_lim:
+        breakloop = False
+        while lmax <= lmax_lim:
+            print(threshold, nmax, lmax)
+            try:
+                out_test = model.CalcEnergy(
+                    nmax,
+                    lmax,
+                    grid_params={"ngrid": ngrid_init, "s0": s0},
+                    band_params={"nkpts": kpts_init},
+                    scf_params={"maxscf": 5},
+                    grid_type=grid_type,
+                    write_info=True,
+                )
+            except:
+                sys.exit("Too many orbitals, aborting calculation")
+            xgrid = out_test["orbitals"]._xgrid
+            norbs_ok, lorbs_ok = staticKS.Orbitals(xgrid, "sqrt").check_orbs(
+                out_test["orbitals"].occnums_w, threshold
+            )
+            if norbs_ok and lorbs_ok:
+                breakloop = True
+                break
+            else:
+                if not norbs_ok:
+                    nmax += nmax_diff
+                if not lorbs_ok:
+                    lmax += lmax_diff
+        if breakloop:
+            break
+    nmax += norbs_buffer
+    lmax += lorbs_buffer
+    P_dict_outer = P_dict
+    full_dict_outer = full_dict
+    P_dict, full_dict, nconv = calc_pressure_dict(atom, model, 1e-4, ngrid, kpts_init)
+    P_diffs_outer = compute_relative_differences(P_dict, P_dict_outer)
+    full_diffs_outer = compute_relative_differences(full_dict, full_dict_outer)
+    print(
+        "nmax final",
+        nmax,
+        "lmax_final",
+        lmax,
+        "P_diffs",
+        P_diffs_outer,
+        "P_dict",
+        P_dict,
+    )
+
+    if are_differences_below_threshold(
+        P_diffs_outer, full_diffs_outer, conv_hardlim, conv_softlim
+    ):
+        break
+
+while ngrid < 20000:
     ngrid = int(ngrid * 1.5)
     P_dict_outer = P_dict
     full_dict_outer = full_dict
     P_dict, full_dict, nconv = calc_pressure_dict(atom, model, 1e-4, ngrid, kpts_init)
     P_diffs_outer = compute_relative_differences(P_dict, P_dict_outer)
     full_diffs_outer = compute_relative_differences(full_dict, full_dict_outer)
-    print(ngrid, P_dict)
+    print("ngrid final", ngrid, "P_diffs", P_diffs_outer, "P_dict", P_dict)
 
     if are_differences_below_threshold(
         P_diffs_outer, full_diffs_outer, conv_hardlim, conv_softlim
@@ -342,14 +382,14 @@ while ngrid < 30000:
 
 nkpts = kpts_init
 
-while nkpts < 550:
+while nkpts < 400:
     nkpts = int(nkpts * 1.5)
     P_dict_outer = P_dict
     full_dict_outer = full_dict
     P_dict, full_dict, nconv = calc_pressure_dict(atom, model, 1e-4, ngrid, nkpts)
     P_diffs_outer = compute_relative_differences(P_dict, P_dict_outer)
     full_diffs_outer = compute_relative_differences(full_dict, full_dict_outer)
-    print(nkpts, P_dict)
+    print("nkpts final", nkpts, "P_diffs", P_diffs_outer, "P_dict", P_dict)
 
     if are_differences_below_threshold(
         P_diffs_outer, full_diffs_outer, conv_hardlim, conv_softlim
