@@ -15,6 +15,7 @@ import sys
 
 # import external packages
 from math import log, sqrt
+import numpy as np
 
 # import internal packages
 from . import check_inputs
@@ -407,6 +408,10 @@ class ISModel:
 
             # test convergence
             conv_vals = conv.check_conv(E_free, v_s, rho.total, iscf)
+            if iscf > 1:
+                conv_vals_save = {"dE": 1, "drho": 1, "dpot": 1}
+                for cval in ["dE", "drho", "dpot"]:
+                    conv_vals_save[cval] = 10 ** np.floor(np.log10(conv_vals[cval]))
 
             # write scf output
             scf_string = writeoutput.SCF.write_cycle(iscf, E_free, conv_vals)
@@ -421,15 +426,15 @@ class ISModel:
                     "potential": pot,
                     "orbitals": orbs,
                 }
-                if iscf < 3:
+                if iscf < 1:
                     scf_dict_old = scf_dict
                 else:
                     converged = convergence_func(
                         scf_dict, scf_dict_old, self.atom, self
                     )
-                    scf_dict_old = scf_dict
                     if converged:
                         break
+                    scf_dict_old = scf_dict
 
             else:
                 if conv_vals["complete"]:
@@ -465,7 +470,7 @@ class ISModel:
             "density": rho,
             "potential": pot,
             "orbitals": orbs,
-            "conv_vals": conv_vals,
+            "conv_vals": conv_vals_save,
         }
 
         return output_dict
