@@ -164,7 +164,7 @@ def gradient(f, xgrid):
 def converge_pressure_nconv(
     atom,
     model,
-    nconv_max=1e-3,
+    nconv_max=1e-4,
     nconv_min=1e-7,
     orb_params={
         "norbs_min": 4,
@@ -174,7 +174,7 @@ def converge_pressure_nconv(
         "norbs_buffer": 3,
         "lorbs_buffer": 3,
         "norbs_diff": 2,
-        "lorbs_diff": 2,
+        "lorbs_diff": 4,
         "maxscf": 5,
         "threshold_max": 1e-3,
         "threshold_min": 1e-7,
@@ -203,7 +203,6 @@ def converge_pressure_nconv(
         # update the starting guesses for nmax and lmax
         orb_params["norbs_min"] = nmax - orb_params["norbs_buffer"]
         orb_params["lorbs_min"] = lmax - orb_params["lorbs_buffer"]
-        print(nmax, orb_params["norbs_min"])
 
         ngrid, _, _ = converge_pressure_ngrid(
             atom,
@@ -218,6 +217,8 @@ def converge_pressure_nconv(
             conv_hardlim=conv_hardlim,
             conv_softlim=conv_softlim,
         )
+        grid_params["ngrid_min"]
+
         nkpts, P_dict, full_dict = converge_pressure_nkpts(
             atom,
             model,
@@ -231,6 +232,7 @@ def converge_pressure_nconv(
             conv_hardlim=conv_hardlim,
             conv_softlim=conv_softlim,
         )
+        kpt_params["nkpts_min"] = nkpts_min
 
         print("nconv = ", nconv)
         print("Pressure dict = ", P_dict)
@@ -308,6 +310,7 @@ def converge_pressure_norbs(
         while norbs <= norbs_max:
             breakloop = False
             while lorbs <= lorbs_max:
+                print("norbs, lorbs = ", norbs, lorbs)
                 try:
                     out_test = model.CalcEnergy(
                         norbs,
@@ -316,7 +319,7 @@ def converge_pressure_norbs(
                         band_params={"nkpts": nkpts},
                         scf_params={"maxscf": maxscf},
                         grid_type=grid_type,
-                        write_info=False,
+                        write_info=True,
                     )
                 except:
                     sys.exit("Too many orbitals, aborting calculation")
@@ -431,11 +434,11 @@ def converge_pressure_nkpts(
 if __name__ == "__main__":
     # use all cores
     config.numcores = -1
-    config.suppress_warnings = True
+    config.suppress_warnings = False
 
-    atom_species = "Al"  # helium
-    density = 2.7  # Wigner-Seitz radius of room-temp Be
-    temperature = 50  # temperature in eV
+    atom_species = "H"  # helium
+    density = 0.000983  # Wigner-Seitz radius of room-temp Be
+    temperature = 43.77  # temperature in eV
     grid_type = "sqrt"
 
     # initialize the atom object
