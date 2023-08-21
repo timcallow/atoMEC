@@ -36,3 +36,5 @@ fp = np.float64
 
 # parallelization
 numcores = 0  # defaults to serial
+
+suppress_warnings = False
