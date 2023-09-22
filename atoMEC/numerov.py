@@ -136,7 +136,7 @@ class Solver:
            (2012) `DOI:10.1119/1.4748813 <https://doi.org/10.1119/1.4748813>`__.
         """
         if solve_type == "guess":
-            dtype = np.float64
+            dtype = self.fp
         else:
             dtype = self.fp
         if eigs_min_guess is None:
@@ -253,7 +253,7 @@ class Solver:
         `n_avail` and parallelizes into `n_avail + 1 - N` separate jobs.
         """
         if solve_type == "guess":
-            dtype = np.float64
+            dtype = self.fp
         else:
             dtype = self.fp
         # compute the number of grid points
@@ -369,7 +369,7 @@ class Solver:
             KS eigenvalues
         """
         if solve_type == "guess":
-            dtype = np.float64
+            dtype = self.fp
         else:
             dtype = self.fp
         # compute the number of grid points
@@ -489,7 +489,7 @@ class Solver:
             the KS eigenvalues
         """
         if solve_type == "guess":
-            dtype = np.float64
+            dtype = self.fp
         else:
             dtype = self.fp
         # compute the number of grid points
@@ -582,13 +582,13 @@ class Solver:
         """
         # Sort eigenvalues in ascending order
         idr = np.argsort(l_eigvals)
-        eigvals = np.array(l_eigvals[idr].real, dtype=np.float64)
+        eigvals = np.array(l_eigvals[idr].real, dtype=config.fp)
 
         # resize l_eigfuncs from N-1 to N for dirichlet condition
         if bc == "dirichlet":
             N = np.size(xgrid)
             nmax = np.shape(l_eigfuncs)[1]
-            l_eigfuncs_dir = np.zeros((N, nmax), dtype=np.float64)
+            l_eigfuncs_dir = np.zeros((N, nmax), dtype=config.fp)
             l_eigfuncs_dir[:-1] = l_eigfuncs.real
             l_eigfuncs = l_eigfuncs_dir
 
@@ -600,7 +600,7 @@ class Solver:
         ) / (1 + h * K[-1])
 
         # convert to correct dimensions
-        eigfuncs = np.array(np.transpose(l_eigfuncs.real)[idr], dtype=np.float64)
+        eigfuncs = np.array(np.transpose(l_eigfuncs.real)[idr], dtype=config.fp)
         if grid_type == "sqrt":
             eigfuncs *= xgrid**-1.5
         eigfuncs = mathtools.normalize_orbs(eigfuncs, xgrid, grid_type)  # normalize

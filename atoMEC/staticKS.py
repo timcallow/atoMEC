@@ -65,7 +65,9 @@ def log_grid(x_r):
         The grids in logarithmic (x) and real (r) space
     """
     # grid in logarithmic co-ordinates
-    xgrid = np.linspace(config.grid_params["x0"], x_r, config.grid_params["ngrid"])
+    xgrid = np.linspace(
+        config.grid_params["x0"], x_r, config.grid_params["ngrid"], dtype=config.fp
+    )
     # grid in real space co-ordinates
     rgrid = np.exp(xgrid)
 
@@ -92,7 +94,9 @@ def sqrt_grid(s_r):
         The grids in sqrt (x) and real (r) space
     """
     # grid in sqrt co-ordinates
-    xgrid = np.linspace(config.grid_params["s0"], s_r, config.grid_params["ngrid"])
+    xgrid = np.linspace(
+        config.grid_params["s0"], s_r, config.grid_params["ngrid"], dtype=config.fp
+    )
     # grid in real space co-ordinates
     rgrid = xgrid**2
 
@@ -127,7 +131,7 @@ class Orbitals:
         self._DOS = np.ones_like(self._eigvals)
         self._eigs_min_guess = np.zeros(
             (config.band_params["nkpts"], config.spindims, config.lmax),
-            dtype=np.float64,
+            dtype=config.fp,
         )
         self._eigvals_min = np.zeros(
             (config.band_params["nkpts"], config.spindims, config.lmax), dtype=config.fp
