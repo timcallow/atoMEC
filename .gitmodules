@@ -1,3 +1,0 @@
-[submodule "libxc"]
-	path = libxc
-	url = git@gitlab.com:libxc/libxc.git
