@@ -33,15 +33,13 @@ class SCF:
     def __init__(self, xgrid, grid_type):
         self._xgrid = xgrid
         self._energy = np.zeros((2))
-        self._potential = np.zeros((2, config.spindims, config.grid_params["ngrid"]))
         self._density = np.zeros((2, config.spindims, config.grid_params["ngrid"]))
         self.grid_type = grid_type
 
-    def check_conv(self, E_free, pot, dens, iscf):
+    def check_conv(self, E_free, dens, iscf):
         """
-        Compute and check the changes in energy, integrated density and integrated \
-        potential.
-
+        Compute and check the changes in energy and integrated density.
+=
         If the convergence tolerances are all simultaneously satisfied, the `complete` \
         variable returns `True` as the SCF cycle is complete.
 
@@ -49,8 +47,6 @@ class SCF:
         ----------
         E_free : float
             the total free energy
-        v_s : ndarray
-            the KS potential
         dens : ndarray
             the electronic density
         iscf : int
@@ -62,28 +58,17 @@ class SCF:
             Dictionary of convergence parameters as follows:
             {
             `conv_energy` : ``float``,   `conv_rho` : ``ndarray``,
-            `conv_pot`    : ``ndarray``, `complete` : ``bool``
+            `complete` : ``bool``
             }
         """
         conv_vals = {}
 
         # first update the energy, potential and density attributes
         self._energy[0] = E_free
-        self._potential[0] = pot
         self._density[0] = dens
 
         # compute the change in energy
         conv_vals["dE"] = abs((self._energy[0] - self._energy[1]) / self._energy[0])
-
-        # compute the change in potential
-        dv = np.abs(self._potential[0] - self._potential[1])
-        # compute the norm
-        norm_v = mathtools.int_sphere(
-            np.abs(self._potential[0]), self._xgrid, self.grid_type
-        )
-        conv_vals["dpot"] = (
-            mathtools.int_sphere(dv, self._xgrid, self.grid_type) / norm_v
-        )
 
         # compute the change in density
         dn = np.abs(self._density[0] - self._density[1])
@@ -95,13 +80,11 @@ class SCF:
 
         # reset the energy, potential and density attributes
         self._energy[1] = E_free
-        self._potential[1] = pot
         self._density[1] = dens
 
         # see if the convergence criteria are satisfied
         conv_energy = False
         conv_rho = False
-        conv_pot = False
         conv_vals["complete"] = False
 
         if iscf > 1:
@@ -109,9 +92,7 @@ class SCF:
                 conv_energy = True
             if np.all(conv_vals["drho"] < config.conv_params["nconv"]):
                 conv_rho = True
-            if np.all(conv_vals["dpot"] < config.conv_params["vconv"]):
-                conv_pot = True
-            if conv_energy and conv_rho and conv_pot:
+            if conv_energy and conv_rho:
                 conv_vals["complete"] = True
 
         return conv_vals

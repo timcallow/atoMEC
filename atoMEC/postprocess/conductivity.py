@@ -352,7 +352,9 @@ Please run again with spin-unpolarized input."
                             orb_l1n1, orb_ln, l1, n1, l, n, m, self._xgrid
                         )
                         mel_sq = np.abs(mel_cc * mel)
-                    sum_mom[k] += mel_sq / eig_diff
+                        #print(np.shape(orb_l1n1))
+                        #print(l1, n1, m, mel_sq / eig_diff, orb_l1n1[-1]*orb_ln[-1] * np.exp(5*self._xgrid[-1]) / (eig_diff * 4*np.pi))
+                    sum_mom[k] += mel_sq / eig_diff - orb_l1n1[-1]*orb_ln[-1] * np.exp(-self._xgrid[-1]) / (eig_diff * 4*np.pi)
 
         return sum_mom
 

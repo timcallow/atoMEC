@@ -202,11 +202,8 @@ class SCF:
         dn_str = "{dn:2s} ({dn_x:<4.1e})".format(
             dn="dn", dn_x=config.conv_params["nconv"]
         )
-        dv_str = "{dv:2s} ({dv_x:<4.1e})".format(
-            dv="dv", dv_x=config.conv_params["vconv"]
-        )
 
-        main_str = termspc.join(["iscf", E_str, dE_str, dn_str, dv_str]) + spc
+        main_str = termspc.join(["iscf", E_str, dE_str, dn_str]) + spc
         buffer_str = 65 * "-"
 
         output_str = init_str + main_str + buffer_str
@@ -237,9 +234,8 @@ class SCF:
         E_str = "{E:12.7f}".format(E=E_free)
         dE_str = "{dE:12.3e}".format(dE=conv_vals["dE"])
         dn_str = "{dn:12.3e}".format(dn=np.max(conv_vals["drho"]))
-        dv_str = "{dv:12.3e}".format(dv=np.max(conv_vals["dpot"]))
 
-        output = termspc.join([iscf_str, E_str, dE_str, dn_str, dv_str])
+        output = termspc.join([iscf_str, E_str, dE_str, dn_str])
 
         return output
 

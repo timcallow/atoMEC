@@ -50,7 +50,6 @@ def finite_diff(
         {
         `econv` (``float``)  : convergence for total energy,
         `nconv` (``float``)  : convergence for density,
-        `vconv` (``float``)  : convergence for electron number,
         `eigtol` (``float``) : tolerance for eigenvalues
         }
     scf_params : dict, optional

@@ -181,7 +181,6 @@ class TestCalcEnergy:
         "conv_input",
         [
             ({"nconv": "a"}),
-            ({"vconv": -1e-3}),
         ],
     )
     def test_conv_params(self, conv_input):

@@ -258,7 +258,6 @@ class ISModel:
             {
             `econv` (``float``)  : convergence for total energy,
             `nconv` (``float``)  : convergence for density,
-            `vconv` (``float``)  : convergence for electron number,
             `eigtol` (``float``) : convergence for eigenvalues,
             `bandtol` (``float``) : tolerance for n(l)max warning
             }
@@ -407,7 +406,7 @@ class ISModel:
             v_s_old = v_s
 
             # test convergence
-            conv_vals = conv.check_conv(E_free, v_s, rho.total, iscf)
+            conv_vals = conv.check_conv(E_free, rho.total, iscf)
 
             # write scf output
             scf_string = writeoutput.SCF.write_cycle(iscf, E_free, conv_vals)
@@ -484,7 +483,6 @@ class ISModel:
             {
             `econv` (``float``)  : convergence for total energy,
             `nconv` (``float``)  : convergence for density,
-            `vconv` (``float``)  : convergence for electron number,
             `eigtol` (``float``) : tolerance for eigenvalues
             }
         scf_params : dict, optional
