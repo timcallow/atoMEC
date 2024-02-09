@@ -21,6 +21,7 @@ import functools
 
 # external packages
 import numpy as np
+import scipy
 from scipy.special import lpmv
 from scipy.integrate import quad
 
@@ -330,6 +331,7 @@ Please run again with spin-unpolarized input."
 
         # compute the sum rule
         for k in range(nbands):
+            sum_diff = 0
             for l1, n1 in new_orbs:
                 # the eigenvalue difference
                 eig_diff = self._eigvals[k, 0, l1, n1] - self._eigvals[k, 0, l, n]
@@ -351,8 +353,137 @@ Please run again with spin-unpolarized input."
                         mel_cc = self.calc_mel_grad_int(
                             orb_l1n1, orb_ln, l1, n1, l, n, m, self._xgrid
                         )
-                        mel_sq = np.abs(mel_cc * mel)
-                    sum_mom[k] += mel_sq / eig_diff
+
+                        rad_int = RadialInts.calc_R3_int(orb_l1n1, orb_ln, self._xgrid)
+                        sph_int = SphHamInts.calc_P_radial(l1, l, m)
+
+                        corr = self.calc_corr(l, n, l1, n1, m, k)
+                        corr_cc = self.calc_corr(l1, n1, l, n, m, k)
+
+                        corr_extra_term = 0.5 * rad_int * sph_int * (corr_cc - corr)
+
+                        # mel += corr
+                        # mel_cc += corr_cc
+
+                        # mel_sq = np.abs(mel_cc * mel)
+                        mel_sq = mel**2
+
+                        # check the "intermediate" sum rule
+                        # check_1 = eig_diff * (rad_int * sph_int) ** 2
+                        # check_2 = mel / eig_diff
+                        # print(np.abs(check_1 - check_2) < 1e-3)
+
+                        check_1 = (mel + corr) / eig_diff
+                        check_2 = rad_int * sph_int
+
+                        sum_diff += (check_1**2 - check_2**2) * eig_diff
+
+                        sum_mom[k] += check_1**2 * eig_diff + corr_extra_term
+            print(k, sum_diff)
+
+        return sum_mom
+
+    def check_sum_rule_37(self, l1, n1, l2, n2, m):
+
+        nbands, nspin, lmax, nmax = np.shape(self._eigvals)
+
+        # compute the momentum integral
+        if abs(m) > l1 or abs(m) > l2:
+            sys.exit("m cannot be greater than l1 or l2")
+
+        rad_arr = np.zeros((nbands))
+        mom_arr = np.zeros((nbands))
+
+        # get the orbitals
+        for k in range(nbands):
+            orb_l1n1 = np.sqrt(4 * np.pi) * self._eigfuncs[k, 0, l1, n1]
+            orb_l2n2 = np.sqrt(4 * np.pi) * self._eigfuncs[k, 0, l2, n2]
+
+            # first compute the momentum term <phi_i|p_z|phi_j>
+            mom_int = self.calc_mel_grad_int(
+                orb_l1n1, orb_l2n2, l1, n1, l2, n2, m, self._xgrid
+            )
+            eig_diff = -self._eigvals[k, 0, l1, n1] + self._eigvals[k, 0, l2, n2]
+            mom_term = mom_int / eig_diff
+
+            # now compute the radial term <phi_i|r_z|phi_j>
+            rad_int = RadialInts.calc_R3_int(orb_l1n1, orb_l2n2, self._xgrid)
+            sph_int = SphHamInts.calc_P_radial(l1, l2, m)
+
+            rad_term = rad_int * sph_int
+
+            corr = self.calc_corr(l1, n1, l2, n2, m, k)
+            mom_term += corr / eig_diff
+
+            rad_arr[k] = rad_term
+            mom_arr[k] = mom_term
+
+            # print(rad_term, mom_term, rad_term - mom_term)
+
+        return rad_arr, mom_arr
+
+    def calc_corr(self, l1, n1, l2, n2, m, k):
+
+        orb_l1n1 = np.sqrt(4 * np.pi) * self._eigfuncs[k, 0, l1, n1]
+        orb_l2n2 = np.sqrt(4 * np.pi) * self._eigfuncs[k, 0, l2, n2]
+
+        sph_int_a = SphHamInts.calc_P_radial(l1, l2, m)
+        sph_int_b = SphHamInts.calc_P_radial(l2, l1, m)
+        surface_term_1 = (
+            RadialInts.calc_surface_term_1(orb_l1n1, orb_l2n2, self._xgrid) * sph_int_a
+        )
+        surface_term_2a = (
+            RadialInts.calc_surface_term_2(orb_l1n1, orb_l2n2, self._xgrid) * sph_int_b
+        )
+        surface_term_2b = (
+            RadialInts.calc_surface_term_2(orb_l2n2, orb_l1n1, self._xgrid) * sph_int_a
+        )
+
+        corr = -0.5 * (surface_term_2a - surface_term_2b + surface_term_1)
+
+        return corr
+
+    def check_sum_rule_41(self, l, n, m):
+
+        # set up the orbitals to sum over
+        new_orbs = self.all_orbs
+        new_orbs.remove((l, n))
+
+        # initialize sum_mom and various indices
+        nbands, nspin, lmax, nmax = np.shape(self._eigvals)
+        sum_mom = np.zeros((nbands))
+
+        # compute the sum rule
+        for k in range(nbands):
+            for l1, n1 in new_orbs:
+                # the eigenvalue difference
+                eig_diff = self._eigvals[k, 0, l1, n1] - self._eigvals[k, 0, l, n]
+
+                # only states with |l-l_1|=1 contribute
+                if abs(l1 - l) != 1:
+                    continue
+                else:
+                    # scale eigenfunctions by sqrt(4 pi) due to different normalization
+                    orb_l1n1 = np.sqrt(4 * np.pi) * self._eigfuncs[k, 0, l1, n1]
+                    orb_ln = np.sqrt(4 * np.pi) * self._eigfuncs[k, 0, l, n]
+
+                    # compute the matrix element <\phi|\grad|\phi> and its complex conj
+                    if abs(m) > l1:
+                        mel_sq = 0
+                    else:
+                        # now compute the radial term <phi_i|r_z|phi_j>
+                        rad_int = RadialInts.calc_R3_int(orb_l1n1, orb_ln, self._xgrid)
+                        sph_int = SphHamInts.calc_P_radial(l1, l, m)
+                        rad_term = (rad_int * sph_int) ** 2
+
+                        sum_mom[k] += rad_term * eig_diff
+
+                        corr = self.calc_corr(l, n, l1, n1, m, k)
+                        corr_cc = self.calc_corr(l1, n1, l, n, m, k)
+
+                        corr_term = 0.5 * rad_int * sph_int * (corr_cc - corr)
+
+                        sum_mom[k] += corr_term
 
         return sum_mom
 
@@ -757,9 +888,35 @@ class SphHamInts:
         else:
             sys.exit("Error: func_int value not recognised, must be 2 or 4")
 
-        P_int_ = 2 * np.pi * cls.sph_ham_coeff(l1, m) * cls.sph_ham_coeff(l2, m) * integ
+        P_int_ = (
+            (-1) ** 2
+            * 2
+            * np.pi
+            * cls.sph_ham_coeff(l1, m)
+            * cls.sph_ham_coeff(l2, m)
+            * integ
+        )
 
         return P_int_
+
+    @classmethod
+    def calc_P_radial(cls, l1, l2, m):
+
+        P_radial_tup = scipy.integrate.dblquad(
+            cls.P_radial_func, 0, 2 * np.pi, 0, np.pi, args=(l1, l2, m)
+        )
+        P_radial = P_radial_tup[0] * (-1) ** m
+        return P_radial
+
+    @staticmethod
+    def P_radial_func(theta, phi, l1, l2, m):
+
+        Y_l1 = scipy.special.sph_harm(m, l1, phi, theta)
+        Y_l2 = scipy.special.sph_harm(-m, l2, phi, theta)
+
+        P_radial_func_ = np.sin(theta) * np.cos(theta) * Y_l1 * Y_l2
+
+        return P_radial_func_
 
     @staticmethod
     def P2_func(x, l1, l2, m):
@@ -1087,3 +1244,84 @@ class RadialInts:
         R2_int = np.trapz(func_int, xgrid)
 
         return R2_int
+
+    @staticmethod
+    def calc_R3_int(orb1, orb2, xgrid):
+        r"""
+        Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
+
+        Parameters
+        ----------
+        orb1 : ndarray
+            the first radial orbital
+        orb2 : ndarray
+            the second radial orbital
+
+        Returns
+        -------
+        R2_int : ndarray
+            the R2 integral
+
+        Notes
+        -----
+        See :func:`calc_R2_int_mat` for definition of the integral
+        """
+        func_int = np.exp(3 * xgrid) * orb1 * orb2
+        R3_int = np.trapz(func_int, xgrid)
+
+        return R3_int
+
+    def calc_surface_term_1(orb1, orb2, xgrid):
+        r"""
+        Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
+
+        Parameters
+        ----------
+        orb1 : ndarray
+            the first radial orbital
+        orb2 : ndarray
+            the second radial orbital
+
+        Returns
+        -------
+        R2_int : ndarray
+            the R2 integral
+
+        Notes
+        -----
+        See :func:`calc_R2_int_mat` for definition of the integral
+        """
+        rsq_chisq = np.exp(xgrid) * orb1 * orb2
+
+        return rsq_chisq[-1]
+
+    def calc_surface_term_2(orb1, orb2, xgrid):
+        r"""
+        Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
+
+        Parameters
+        ----------
+        orb1 : ndarray
+            the first radial orbital
+        orb2 : ndarray
+            the second radial orbital
+
+        Returns
+        -------
+        R2_int : ndarray
+            the R2 integral
+
+        Notes
+        -----
+        See :func:`calc_R2_int_mat` for definition of the integral
+        """
+
+        # take the derivative of orb2
+        # compute the gradient of the orbitals
+        deriv_orb2 = np.gradient(orb2, xgrid, axis=-1, edge_order=2)
+
+        # chain rule to convert from dP_dx to dX_dr
+        grad_orb2 = np.exp(-xgrid) * (deriv_orb2 - 0.5 * orb2)
+        rsq_chisq = np.exp(2 * xgrid) * orb1 * grad_orb2
+
+        return rsq_chisq[-1]
