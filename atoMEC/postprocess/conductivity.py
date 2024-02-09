@@ -46,11 +46,14 @@ class KuboGreenwood:
 Please run again with spin-unpolarized input."
             )
 
-        if orbitals.grid_type != "log":
-            sys.exit(
-                "Sqrt grid is not yet supported for Kubo-Greenwood calculations."
-                "Please switch to log grid."
-            )
+        if orbitals.grid_type == "sqrt":
+            self.radial_integrator = RadialIntsSqrt()
+            # sys.exit(
+            #     "Sqrt grid is not yet supported for Kubo-Greenwood calculations."
+            #     "Please switch to log grid."
+            # )
+        else:
+            self.radial_integrator = RadialIntsLog("log")
         if nmax == 0:
             self._nmax = nmax_default
         else:
@@ -183,7 +186,7 @@ Please run again with spin-unpolarized input."
     @functools.lru_cache
     def R1_int_tt(self):
         """Total-total component of the R1 radial integral."""
-        R1_int_tt_ = RadialInts.calc_R1_int_mat(
+        R1_int_tt_ = self.radial_integrator.calc_R1_int_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
@@ -196,7 +199,7 @@ Please run again with spin-unpolarized input."
     @functools.lru_cache
     def R1_int_cc(self):
         """Conducting-conducting component of the R1 radial integral."""
-        R1_int_cc_ = RadialInts.calc_R1_int_mat(
+        R1_int_cc_ = self.radial_integrator.calc_R1_int_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
@@ -209,7 +212,7 @@ Please run again with spin-unpolarized input."
     @functools.lru_cache
     def R1_int_cv(self):
         """Conducting-valence component of the R1 radial integral."""
-        R1_int_cv_ = RadialInts.calc_R1_int_mat(
+        R1_int_cv_ = self.radial_integrator.calc_R1_int_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
@@ -222,7 +225,7 @@ Please run again with spin-unpolarized input."
     @functools.lru_cache
     def R1_int_vv(self):
         """Valence-valence component of the R1 radial integral."""
-        R1_int_vv_ = RadialInts.calc_R1_int_mat(
+        R1_int_vv_ = self.radial_integrator.calc_R1_int_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
@@ -235,7 +238,7 @@ Please run again with spin-unpolarized input."
     @functools.lru_cache
     def R2_int_tt(self):
         """Total-total component of the R2 radial integral."""
-        R2_int_tt_ = RadialInts.calc_R2_int_mat(
+        R2_int_tt_ = self.radial_integrator.calc_R2_int_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
@@ -248,7 +251,7 @@ Please run again with spin-unpolarized input."
     @functools.lru_cache
     def R2_int_cc(self):
         """Conducting-conducting component of the R2 radial integral."""
-        R2_int_cc_ = RadialInts.calc_R2_int_mat(
+        R2_int_cc_ = self.radial_integrator.calc_R2_int_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
@@ -261,7 +264,7 @@ Please run again with spin-unpolarized input."
     @functools.lru_cache
     def R2_int_cv(self):
         """Conducting-valence component of the R2 radial integral."""
-        R2_int_cv_ = RadialInts.calc_R2_int_mat(
+        R2_int_cv_ = self.radial_integrator.calc_R2_int_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
@@ -274,7 +277,7 @@ Please run again with spin-unpolarized input."
     @functools.lru_cache
     def R2_int_vv(self):
         """Valence-valence component of the R2 radial integral."""
-        R2_int_vv_ = RadialInts.calc_R2_int_mat(
+        R2_int_vv_ = self.radial_integrator.calc_R2_int_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
@@ -354,7 +357,9 @@ Please run again with spin-unpolarized input."
                             orb_l1n1, orb_ln, l1, n1, l, n, m, self._xgrid
                         )
 
-                        rad_int = RadialInts.calc_R3_int(orb_l1n1, orb_ln, self._xgrid)
+                        rad_int = self.radial_integrator.calc_R3_int(
+                            orb_l1n1, orb_ln, self._xgrid
+                        )
                         sph_int = SphHamInts.calc_P_radial(l1, l, m)
 
                         corr = self.calc_corr(l, n, l1, n1, m, k)
@@ -378,8 +383,8 @@ Please run again with spin-unpolarized input."
 
                         sum_diff += (check_1**2 - check_2**2) * eig_diff
 
-                        sum_mom[k] += check_1**2 * eig_diff + corr_extra_term
-            print(k, sum_diff)
+                        sum_mom[k] += mel_sq / eig_diff  # + corr_extra_term
+            # print(k, sum_diff)
 
         return sum_mom
 
@@ -407,7 +412,9 @@ Please run again with spin-unpolarized input."
             mom_term = mom_int / eig_diff
 
             # now compute the radial term <phi_i|r_z|phi_j>
-            rad_int = RadialInts.calc_R3_int(orb_l1n1, orb_l2n2, self._xgrid)
+            rad_int = self.radial_integrator.calc_R3_int(
+                orb_l1n1, orb_l2n2, self._xgrid
+            )
             sph_int = SphHamInts.calc_P_radial(l1, l2, m)
 
             rad_term = rad_int * sph_int
@@ -430,13 +437,16 @@ Please run again with spin-unpolarized input."
         sph_int_a = SphHamInts.calc_P_radial(l1, l2, m)
         sph_int_b = SphHamInts.calc_P_radial(l2, l1, m)
         surface_term_1 = (
-            RadialInts.calc_surface_term_1(orb_l1n1, orb_l2n2, self._xgrid) * sph_int_a
+            self.radial_integrator.calc_surface_term_1(orb_l1n1, orb_l2n2, self._xgrid)
+            * sph_int_a
         )
         surface_term_2a = (
-            RadialInts.calc_surface_term_2(orb_l1n1, orb_l2n2, self._xgrid) * sph_int_b
+            self.radial_integrator.calc_surface_term_2(orb_l1n1, orb_l2n2, self._xgrid)
+            * sph_int_b
         )
         surface_term_2b = (
-            RadialInts.calc_surface_term_2(orb_l2n2, orb_l1n1, self._xgrid) * sph_int_a
+            self.radial_integrator.calc_surface_term_2(orb_l2n2, orb_l1n1, self._xgrid)
+            * sph_int_a
         )
 
         corr = -0.5 * (surface_term_2a - surface_term_2b + surface_term_1)
@@ -472,7 +482,9 @@ Please run again with spin-unpolarized input."
                         mel_sq = 0
                     else:
                         # now compute the radial term <phi_i|r_z|phi_j>
-                        rad_int = RadialInts.calc_R3_int(orb_l1n1, orb_ln, self._xgrid)
+                        rad_int = self.radial_integrator.calc_R3_int(
+                            orb_l1n1, orb_ln, self._xgrid
+                        )
                         sph_int = SphHamInts.calc_P_radial(l1, l, m)
                         rad_term = (rad_int * sph_int) ** 2
 
@@ -749,8 +761,7 @@ Please run again with spin-unpolarized input."
                     eig_diff_mat[:, l1, n1, l2, n2] = eig_diff
         return eig_diff_mat
 
-    @staticmethod
-    def calc_mel_grad_int(orb_l1n1, orb_l2n2, l1, n1, l2, n2, m, xgrid):
+    def calc_mel_grad_int(self, orb_l1n1, orb_l2n2, l1, n1, l2, n2, m, xgrid):
         r"""
         Calculate the matrix element :math:`|<\phi_{n1l1}|\nabla|\phi_{n1l2}>|^2`.
 
@@ -778,8 +789,8 @@ Please run again with spin-unpolarized input."
         mel_grad_int : float
             the matrix element :math:`|<\phi_{n1l1}|\nabla|\phi_{n1l2}>|^2`.
         """
-        R1_int = RadialInts.calc_R1_int(orb_l1n1, orb_l2n2, xgrid)
-        R2_int = RadialInts.calc_R2_int(orb_l1n1, orb_l2n2, xgrid)
+        R1_int = self.radial_integrator.calc_R1_int(orb_l1n1, orb_l2n2, xgrid)
+        R2_int = self.radial_integrator.calc_R2_int(orb_l1n1, orb_l2n2, xgrid)
 
         mel_grad_int = R1_int * SphHamInts.P_int(
             2, l1, l2, m
@@ -1021,8 +1032,11 @@ class SphHamInts:
         return c_lm
 
 
-class RadialInts:
+class RadialIntsLog:
     """Contains functions required to compute various integrals of the radial KS fns."""
+
+    def __init__(self, grid_type):
+        self.grid_type = grid_type
 
     @classmethod
     def calc_R1_int_mat(cls, eigfuncs, occnums, xgrid, orb_subset_1, orb_subset_2):
@@ -1323,5 +1337,314 @@ class RadialInts:
         # chain rule to convert from dP_dx to dX_dr
         grad_orb2 = np.exp(-xgrid) * (deriv_orb2 - 0.5 * orb2)
         rsq_chisq = np.exp(2 * xgrid) * orb1 * grad_orb2
+
+        return rsq_chisq[-1]
+
+
+class RadialIntsSqrt:
+    """Contains functions required to compute various integrals of the radial KS fns."""
+
+    @classmethod
+    def calc_R1_int_mat(cls, eigfuncs, occnums, xgrid, orb_subset_1, orb_subset_2):
+        r"""
+        Compute the 'R1' integral matrix (see notes).
+
+        Parameters
+        ----------
+        eigfuncs : ndarray
+            the KS eigenfunctions
+        occnums : ndarray
+            the KS occupation numbers
+        xgrid : ndarray
+            the log grid
+        orb_subset_1 : tuple
+            the first subset of orbitals (eg valence)
+        orb_subset_2 : tuple
+            the second subset of orbitals (eg conduction)
+
+        Returns
+        -------
+        R1_mat : ndarray
+            the R1 integral matrix (see notes)
+
+        Notes
+        -----
+        The definition of the R1 integral is (see Ref. [7]_ and supplementary of [8]_)
+
+        .. math::
+            R^{(1)}=4\pi\int_0^R dr r^2 X_{n_1 l_1}(r) \frac{dX_{n_2 l_2}(r)}{dr},
+
+        where :math:`X_{nl}(r)` are the radial KS functions.
+        """
+        # take the derivative of orb2
+        # compute the gradient of the orbitals
+        deriv_orb2 = np.gradient(eigfuncs, xgrid, axis=-1, edge_order=2)
+
+        # chain rule to convert from dP_dx to dX_dr
+        grad_orb2 = deriv_orb2 / (2 * xgrid)
+
+        # initiliaze the matrix
+        nbands, nspin, lmax, nmax = np.shape(occnums)
+        R1_mat = np.zeros((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
+
+        # integrate over the sphere
+        for l1, n1 in orb_subset_1:
+            for l2, n2 in orb_subset_2:
+                # only l1 = l2 +/- 1 terms are non-zero
+                if abs(l1 - l2) != 1:
+                    continue
+                else:
+                    R1_mat[:, l1, n1, l2, n2] = cls.R1_int_term(
+                        eigfuncs[:, 0, l1, n1], grad_orb2[:, 0, l2, n2], xgrid
+                    )
+                    # non-symmetric term
+                    if orb_subset_1 != orb_subset_2:
+                        R1_mat[:, l2, n2, l1, n1] = cls.R1_int_term(
+                            eigfuncs[:, 0, l2, n2], grad_orb2[:, 0, l1, n1], xgrid
+                        )
+
+        return R1_mat
+
+    @staticmethod
+    def R1_int_term(eigfunc, grad_orb2, xgrid):
+        """
+        Input function to the :func:`calc_R1_int_mat` function.
+
+        Parameters
+        ----------
+        eigfunc : ndarray
+            KS orbital l1,n1
+        grad_orb2 : ndarray
+            derivative of KS orbital l2,n2
+        xgrid : ndarray
+            log grid
+
+        Returns
+        -------
+        R1_int : float
+            the matrix element for the R1_int_mat function
+        """
+        func_int = eigfunc * grad_orb2
+        R1_int = 4 * np.pi * np.trapz(2 * xgrid**5 * func_int, xgrid)
+
+        return R1_int
+
+    @classmethod
+    def calc_R2_int_mat(cls, eigfuncs, occnums, xgrid, orb_subset_1, orb_subset_2):
+        r"""
+        Compute the 'R2' integral matrix (see notes).
+
+        Parameters
+        ----------
+        eigfuncs : ndarray
+            the KS eigenfunctions
+        occnums : ndarray
+            the KS occupation numbers
+        xgrid : ndarray
+            the log grid
+        orb_subset_1 : tuple
+            the first subset of orbitals (eg valence)
+        orb_subset_2 : tuple
+            the second subset of orbitals (eg conduction)
+
+        Returns
+        -------
+        R2_mat : ndarray
+            the R2 integral matrix (see notes)
+
+        Notes
+        -----
+        The definition of the R2 integral is (see Ref. [7]_ and supplementary of [8]_)
+
+        .. math::
+            R^{(1)}=4\pi\int_0^R dr r X_{n_1 l_1}(r) X_{n_2 l_2}(r),
+
+        where :math:`X_{nl}(r)` are the radial KS functions.
+        """
+        # initiliaze the matrix
+        nbands, nspin, lmax, nmax = np.shape(occnums)
+        R2_mat = np.zeros((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
+
+        # integrate over the sphere
+        for l1, n1 in orb_subset_1:
+            for l2, n2 in orb_subset_2:
+                if abs(l1 - l2) != 1:
+                    continue
+                else:
+                    R2_mat[:, l1, n1, l2, n2] = cls.R2_int_term(
+                        eigfuncs[:, 0, l1, n1], eigfuncs[:, 0, l2, n2], xgrid
+                    )
+
+                    if orb_subset_1 != orb_subset_2:
+                        R2_mat[:, l2, n2, l1, n1] = cls.R2_int_term(
+                            eigfuncs[:, 0, l2, n2], eigfuncs[:, 0, l1, n1], xgrid
+                        )
+
+        return R2_mat
+
+    @staticmethod
+    def R2_int_term(eigfunc_1, eigfunc_2, xgrid):
+        """
+        Input function to the :func:`calc_R2_int_mat` function.
+
+        Parameters
+        ----------
+        eigfunc_1 : ndarray
+            KS orbital l1,n1
+        eigfunc_2 : ndarray
+            KS orbital l2,n2
+        xgrid : ndarray
+            log grid
+
+        Returns
+        -------
+        R2_int : float
+            the matrix element for the R2_int_mat function
+        """
+        R2_int = 4 * np.pi * np.trapz(2 * xgrid**3 * eigfunc_1 * eigfunc_2, xgrid)
+
+        return R2_int
+
+    @staticmethod
+    def calc_R1_int(orb1, orb2, xgrid):
+        r"""
+        Compute the R1 integral between two orbitals orb1 and orb2 (see notes).
+
+        Parameters
+        ----------
+        orb1 : ndarray
+            the first radial orbital
+        orb2 : ndarray
+            the second radial orbital
+
+        Returns
+        -------
+        R1_int : ndarray
+            the R1 integral
+
+        Notes
+        -----
+        See :func:`calc_R1_int_mat` for definition of the integral
+        """
+        # take the derivative of orb2
+        # compute the gradient of the orbitals
+        deriv_orb2 = np.gradient(orb2, xgrid, axis=-1, edge_order=2)
+
+        # chain rule to convert from dP_dx to dX_dr
+        grad_orb2 = deriv_orb2 / (2 * xgrid)
+
+        # integrate over the sphere
+        func_int = orb1 * grad_orb2
+        R1_int = np.trapz(2 * xgrid**5 * func_int, xgrid)
+
+        return R1_int
+
+    @staticmethod
+    def calc_R2_int(orb1, orb2, xgrid):
+        r"""
+        Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
+
+        Parameters
+        ----------
+        orb1 : ndarray
+            the first radial orbital
+        orb2 : ndarray
+            the second radial orbital
+
+        Returns
+        -------
+        R2_int : ndarray
+            the R2 integral
+
+        Notes
+        -----
+        See :func:`calc_R2_int_mat` for definition of the integral
+        """
+        func_int = orb1 * orb2
+        R2_int = np.trapz(2 * xgrid**3 * func_int, xgrid)
+
+        return R2_int
+
+    @staticmethod
+    def calc_R3_int(orb1, orb2, xgrid):
+        r"""
+        Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
+
+        Parameters
+        ----------
+        orb1 : ndarray
+            the first radial orbital
+        orb2 : ndarray
+            the second radial orbital
+
+        Returns
+        -------
+        R2_int : ndarray
+            the R2 integral
+
+        Notes
+        -----
+        See :func:`calc_R2_int_mat` for definition of the integral
+        """
+        func_int = 2 * xgrid**7 * orb1 * orb2
+        R3_int = np.trapz(func_int, xgrid)
+
+        return R3_int
+
+    @staticmethod
+    def calc_surface_term_1(orb1, orb2, xgrid):
+        r"""
+        Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
+
+        Parameters
+        ----------
+        orb1 : ndarray
+            the first radial orbital
+        orb2 : ndarray
+            the second radial orbital
+
+        Returns
+        -------
+        R2_int : ndarray
+            the R2 integral
+
+        Notes
+        -----
+        See :func:`calc_R2_int_mat` for definition of the integral
+        """
+        rsq_chisq = xgrid**4 * orb1 * orb2
+
+        return rsq_chisq[-1]
+
+    @staticmethod
+    def calc_surface_term_2(orb1, orb2, xgrid):
+        r"""
+        Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
+
+        Parameters
+        ----------
+        orb1 : ndarray
+            the first radial orbital
+        orb2 : ndarray
+            the second radial orbital
+
+        Returns
+        -------
+        R2_int : ndarray
+            the R2 integral
+
+        Notes
+        -----
+        See :func:`calc_R2_int_mat` for definition of the integral
+        """
+
+        # take the derivative of orb2
+        # compute the gradient of the orbitals
+        deriv_orb2 = np.gradient(orb2, xgrid, axis=-1, edge_order=2)
+
+        # chain rule to convert from dP_dx to dX_dr
+        grad_orb2 = deriv_orb2 / (2 * xgrid)
+        print(grad_orb2[-1])
+        rsq_chisq = xgrid**6 * orb1 * grad_orb2
 
         return rsq_chisq[-1]
