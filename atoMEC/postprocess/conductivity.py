@@ -53,7 +53,7 @@ Please run again with spin-unpolarized input."
             #     "Please switch to log grid."
             # )
         else:
-            self.radial_integrator = RadialIntsLog("log")
+            self.radial_integrator = RadialIntsLog()
         if nmax == 0:
             self._nmax = nmax_default
         else:
@@ -365,10 +365,10 @@ Please run again with spin-unpolarized input."
                         corr = self.calc_corr(l, n, l1, n1, m, k)
                         corr_cc = self.calc_corr(l1, n1, l, n, m, k)
 
-                        corr_extra_term = 0.5 * rad_int * sph_int * (corr_cc - corr)
+                        corr_extra_term = -0.5 * rad_int * sph_int * (corr_cc - corr)
 
-                        # mel += corr
-                        # mel_cc += corr_cc
+                        mel += corr
+                        mel_cc += corr_cc
 
                         # mel_sq = np.abs(mel_cc * mel)
                         mel_sq = mel**2
@@ -378,13 +378,13 @@ Please run again with spin-unpolarized input."
                         # check_2 = mel / eig_diff
                         # print(np.abs(check_1 - check_2) < 1e-3)
 
-                        check_1 = (mel + corr) / eig_diff
+                        check_1 = mel / eig_diff
                         check_2 = rad_int * sph_int
 
                         sum_diff += (check_1**2 - check_2**2) * eig_diff
 
-                        sum_mom[k] += mel_sq / eig_diff  # + corr_extra_term
-            # print(k, sum_diff)
+                        sum_mom[k] += mel_sq / eig_diff + corr_extra_term
+            print(k, sum_diff)
 
         return sum_mom
 
@@ -427,7 +427,7 @@ Please run again with spin-unpolarized input."
 
             # print(rad_term, mom_term, rad_term - mom_term)
 
-        return rad_arr, mom_arr
+        return rad_arr - mom_arr
 
     def calc_corr(self, l1, n1, l2, n2, m, k):
 
@@ -493,7 +493,8 @@ Please run again with spin-unpolarized input."
                         corr = self.calc_corr(l, n, l1, n1, m, k)
                         corr_cc = self.calc_corr(l1, n1, l, n, m, k)
 
-                        corr_term = 0.5 * rad_int * sph_int * (corr_cc - corr)
+                        corr_term = -0.5 * rad_int * sph_int * (corr_cc - corr)
+                        # print(k, l, n, l1, n1, corr_cc, corr)
 
                         sum_mom[k] += corr_term
 
@@ -1035,9 +1036,6 @@ class SphHamInts:
 class RadialIntsLog:
     """Contains functions required to compute various integrals of the radial KS fns."""
 
-    def __init__(self, grid_type):
-        self.grid_type = grid_type
-
     @classmethod
     def calc_R1_int_mat(cls, eigfuncs, occnums, xgrid, orb_subset_1, orb_subset_2):
         r"""
@@ -1285,6 +1283,7 @@ class RadialIntsLog:
 
         return R3_int
 
+    @staticmethod
     def calc_surface_term_1(orb1, orb2, xgrid):
         r"""
         Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
@@ -1309,6 +1308,7 @@ class RadialIntsLog:
 
         return rsq_chisq[-1]
 
+    @staticmethod
     def calc_surface_term_2(orb1, orb2, xgrid):
         r"""
         Compute the R2 integral between two orbitals orb1 and orb2 (see notes).
@@ -1644,7 +1644,7 @@ class RadialIntsSqrt:
 
         # chain rule to convert from dP_dx to dX_dr
         grad_orb2 = deriv_orb2 / (2 * xgrid)
-        print(grad_orb2[-1])
+        # print(grad_orb2[-1])
         rsq_chisq = xgrid**6 * orb1 * grad_orb2
 
         return rsq_chisq[-1]
