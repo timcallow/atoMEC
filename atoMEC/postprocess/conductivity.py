@@ -87,7 +87,11 @@ Please run again with spin-unpolarized input."
     def sig_tot(self):
         r"""ndarray: the integrated total conductivity."""
         self._sig_tot = self.calc_sig(
-            self.R1_int_tt, self.R2_int_tt, self.all_orbs, self.all_orbs
+            self.R1_int_tt,
+            self.R2_int_tt,
+            self.R1_corr_tt,
+            self.all_orbs,
+            self.all_orbs,
         )
         return self._sig_tot
 
@@ -236,6 +240,58 @@ Please run again with spin-unpolarized input."
 
     @property
     @functools.lru_cache
+    def R1_corr_tt(self):
+        """Total-total component of the R1 radial integral."""
+        R1_corr_tt_ = self.radial_integrator.calc_R1_corr_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.all_orbs,
+            self.all_orbs,
+        )
+        return R1_corr_tt_
+
+    @property
+    @functools.lru_cache
+    def R1_corr_cc(self):
+        """Conducting-conducting component of the R1 radial integral."""
+        R1_corr_cc_ = self.radial_integrator.calc_R1_corr_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.cond_orbs,
+            self.cond_orbs,
+        )
+        return R1_corr_cc_
+
+    @property
+    @functools.lru_cache
+    def R1_corr_cv(self):
+        """Conducting-valence component of the R1 radial integral."""
+        R1_corr_cv_ = self.radial_integrator.calc_R1_corr_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.cond_orbs,
+            self.valence_orbs,
+        )
+        return R1_corr_cv_
+
+    @property
+    @functools.lru_cache
+    def R1_corr_vv(self):
+        """Valence-valence component of the R1 radial integral."""
+        R1_corr_vv_ = self.radial_integrator.calc_R1_corr_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.valence_orbs,
+            self.valence_orbs,
+        )
+        return R1_corr_vv_
+
+    @property
+    @functools.lru_cache
     def R2_int_tt(self):
         """Total-total component of the R2 radial integral."""
         R2_int_tt_ = self.radial_integrator.calc_R2_int_mat(
@@ -285,6 +341,110 @@ Please run again with spin-unpolarized input."
             self.valence_orbs,
         )
         return R2_int_vv_
+
+    @property
+    @functools.lru_cache
+    def R1_corr_int_tt(self):
+        """Total-total component of the R1 radial integral."""
+        R1_corr_int_tt_ = self.radial_integrator.calc_R1_corr_int_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.all_orbs,
+            self.all_orbs,
+        )
+        return R1_corr_int_tt_
+
+    @property
+    @functools.lru_cache
+    def R1_corr_int_cc(self):
+        """Conducting-conducting component of the R1 radial integral."""
+        R1_corr_int_cc_ = self.radial_integrator.calc_R1_corr_int_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.cond_orbs,
+            self.cond_orbs,
+        )
+        return R1_corr_int_cc_
+
+    @property
+    @functools.lru_cache
+    def R1_corr_int_cv(self):
+        """Conducting-valence component of the R1 radial integral."""
+        R1_corr_int_cv_ = self.radial_integrator.calc_R1_corr_int_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.cond_orbs,
+            self.valence_orbs,
+        )
+        return R1_corr_int_cv_
+
+    @property
+    @functools.lru_cache
+    def R1_corr_int_vv(self):
+        """Valence-valence component of the R1 radial integral."""
+        R1_corr_int_vv_ = self.radial_integrator.calc_R1_corr_int_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.valence_orbs,
+            self.valence_orbs,
+        )
+        return R1_corr_int_vv_
+
+    @property
+    @functools.lru_cache
+    def R2_corr_int_tt(self):
+        """Total-total component of the R2 radial integral."""
+        R2_corr_int_tt_ = self.radial_integrator.calc_R2_corr_int_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.all_orbs,
+            self.all_orbs,
+        )
+        return R2_corr_int_tt_
+
+    @property
+    @functools.lru_cache
+    def R2_corr_int_cc(self):
+        """Conducting-conducting component of the R2 radial integral."""
+        R2_corr_int_cc_ = self.radial_integrator.calc_R2_corr_int_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.cond_orbs,
+            self.cond_orbs,
+        )
+        return R2_corr_int_cc_
+
+    @property
+    @functools.lru_cache
+    def R2_corr_int_cv(self):
+        """Conducting-valence component of the R2 radial integral."""
+        R2_corr_int_cv_ = self.radial_integrator.calc_R2_corr_int_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.cond_orbs,
+            self.valence_orbs,
+        )
+        return R2_corr_int_cv_
+
+    @property
+    @functools.lru_cache
+    def R2_corr_int_vv(self):
+        """Valence-valence component of the R2 radial integral."""
+        R2_corr_int_vv_ = self.radial_integrator.calc_R2_corr_int_mat(
+            self._eigfuncs,
+            self._occnums,
+            self._xgrid,
+            self.valence_orbs,
+            self.valence_orbs,
+        )
+        return R2_corr_int_vv_
 
     def check_sum_rule(self, l, n, m):
         r"""
@@ -500,7 +660,7 @@ Please run again with spin-unpolarized input."
 
         return sum_mom
 
-    def calc_sig(self, R1_int, R2_int, orb_subset_1, orb_subset_2):
+    def calc_sig(self, R1_int, R2_int, R1_corr, orb_subset_1, orb_subset_2):
         r"""
         Compute the *integrated* dynamical conducivity for given subsets (see notes).
 
@@ -555,6 +715,7 @@ Please run again with spin-unpolarized input."
         # compute the angular integrals (see functions for defns)
         P2_int = SphHamInts.P_mat_int(2, lmax)
         P4_int = SphHamInts.P_mat_int(4, lmax)
+        Pcorr_int = SphHamInts.P_corr_int(lmax)
 
         # compute the products of the radial and angular integrals
         tmp_mat_1 = np.einsum("kabcd,ace->kabcde", R1_int, P2_int)
@@ -562,9 +723,15 @@ Please run again with spin-unpolarized input."
         tmp_mat_3 = np.einsum("kcdab,cae->kabcde", R1_int, P2_int)
         tmp_mat_4 = np.einsum("kcdab,cae->kabcde", R2_int, P4_int)
 
+        corr_mat = np.einsum("kabcd,ace->kabcde", R1_corr, Pcorr_int)
+        corr_mat_cc = np.einsum("kcdab,cae->kabcde", R1_corr, Pcorr_int)
+
         # compute the sum over the matrix element |< phi_nlm | nabla | phi_pqm >|^2
         mel_sq_mat = np.sum(
-            np.abs((tmp_mat_1 + tmp_mat_2) * (tmp_mat_3 + tmp_mat_4)),
+            np.abs(
+                (tmp_mat_1 + tmp_mat_2 + corr_mat)
+                * (tmp_mat_3 + tmp_mat_4 + corr_mat_cc)
+            ),
             axis=-1,
         )
 
@@ -584,7 +751,15 @@ Please run again with spin-unpolarized input."
         return sig
 
     def calc_sig_func(
-        self, R1_int, R2_int, orb_subset_1, orb_subset_2, omega_max, n_freq, gamma
+        self,
+        R1_int,
+        R2_int,
+        R1_corr,
+        orb_subset_1,
+        orb_subset_2,
+        omega_max,
+        n_freq,
+        gamma,
     ):
         r"""
         Compute the dynamical conducivity for given subsets (see notes).
@@ -646,6 +821,7 @@ Please run again with spin-unpolarized input."
         # compute the angular momenta integrals
         P2_int = SphHamInts.P_mat_int(2, lmax)
         P4_int = SphHamInts.P_mat_int(4, lmax)
+        Pcorr_int = SphHamInts.P_corr_int(lmax)
 
         # put the angular and radial integrals together
         tmp_mat_1 = np.einsum("kabcd,ace->kabcde", R1_int, P2_int)
@@ -653,8 +829,14 @@ Please run again with spin-unpolarized input."
         tmp_mat_3 = np.einsum("kcdab,cae->kabcde", R1_int, P2_int)
         tmp_mat_4 = np.einsum("kcdab,cae->kabcde", R2_int, P4_int)
 
+        corr_mat = np.einsum("kabcd,ace->kabcde", R1_corr, Pcorr_int)
+        corr_mat_cc = np.einsum("kcdab,cae->kabcde", R1_corr, Pcorr_int)
+
         mel_sq_mat = np.sum(
-            np.abs((tmp_mat_1 + tmp_mat_2) * (tmp_mat_3 + tmp_mat_4)),
+            np.abs(
+                (tmp_mat_1 + tmp_mat_2 + corr_mat)
+                * (tmp_mat_3 + tmp_mat_4 + corr_matt_cc)
+            ),
             axis=-1,
         )
 
@@ -910,6 +1092,22 @@ class SphHamInts:
         )
 
         return P_int_
+
+    @classmethod
+    def P_corr_int(cls, lmax):
+        P_mat = np.zeros((lmax, lmax, 2 * lmax + 1))
+
+        for l1 in range(lmax):
+            for l2 in range(lmax):
+                # sum rules mean all terms with l1!=l2 are zero
+                if abs(l1 - l2) == 1:
+                    # m cannot exceed either of l1 or l2
+                    lsmall = min(l1, l2)
+                    for m in range(-lsmall, lsmall + 1):
+                        P_mat[l1, l2, lsmall + m] = cls.calc_P_radial(l1, l2, m)
+                else:
+                    continue
+        return P_mat
 
     @classmethod
     def calc_P_radial(cls, l1, l2, m):
@@ -1485,7 +1683,167 @@ class RadialIntsSqrt:
     @staticmethod
     def R2_int_term(eigfunc_1, eigfunc_2, xgrid):
         """
-        Input function to the :func:`calc_R2_int_mat` function.
+        Input function to the :func:`calc_R1_int_mat` function.
+
+        Parameters
+        ----------
+        eigfunc : ndarray
+            KS orbital l1,n1
+        grad_orb2 : ndarray
+            derivative of KS orbital l2,n2
+        xgrid : ndarray
+            log grid
+
+        Returns
+        -------
+        R1_int : float
+            the matrix element for the R1_int_mat function
+        """
+        R2_int = 4 * np.pi * np.trapz(2 * xgrid**2 * eigfunc_1 * eigfunc_2, xgrid)
+
+        return R2_int
+
+    @classmethod
+    def calc_R2_corr_mat(cls, eigfuncs, occnums, xgrid, orb_subset_1, orb_subset_2):
+        r"""
+        Compute the 'R1' integral matrix (see notes).
+
+        Parameters
+        ----------
+        eigfuncs : ndarray
+            the KS eigenfunctions
+        occnums : ndarray
+            the KS occupation numbers
+        xgrid : ndarray
+            the log grid
+        orb_subset_1 : tuple
+            the first subset of orbitals (eg valence)
+        orb_subset_2 : tuple
+            the second subset of orbitals (eg conduction)
+
+        Returns
+        -------
+        R2_mat : ndarray
+            the R2 integral matrix (see notes)
+
+        Notes
+        -----
+        The definition of the R2 integral is (see Ref. [7]_ and supplementary of [8]_)
+
+        .. math::
+            R^{(1)}=4\pi\int_0^R dr r^2 X_{n_1 l_1}(r) \frac{dX_{n_2 l_2}(r)}{dr},
+
+        where :math:`X_{nl}(r)` are the radial KS functions.
+        """
+        # take the derivative of orb2
+        # compute the gradient of the orbitals
+        deriv_orb2 = np.gradient(eigfuncs, xgrid, axis=-1, edge_order=2)
+
+        # chain rule to convert from dP_dx to dX_dr
+        grad_orb2 = deriv_orb2 / (2 * xgrid)
+
+        # initiliaze the matrix
+        nbands, nspin, lmax, nmax = np.shape(occnums)
+        R2_mat = np.zeros((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
+
+        # integrate over the sphere
+        for l1, n1 in orb_subset_1:
+            for l2, n2 in orb_subset_2:
+                # only l1 = l2 +/- 1 terms are non-zero
+                if abs(l1 - l2) != 1:
+                    continue
+                else:
+                    R2_mat[:, l1, n1, l2, n2] = cls.R2_corr_term(
+                        eigfuncs[:, 0, l1, n1], grad_orb2[:, 0, l2, n2], xgrid
+                    )
+                    # non-symmetric term
+                    if orb_subset_1 != orb_subset_2:
+                        R2_mat[:, l2, n2, l1, n1] = cls.R2_corr_int_term(
+                            eigfuncs[:, 0, l2, n2], grad_orb2[:, 0, l1, n1], xgrid
+                        )
+
+        return R2_mat
+
+    @staticmethod
+    def R2_corr_term(eigfunc, grad_orb2, xgrid):
+        """
+        Input function to the :func:`calc_R2_corr_int_mat` function.
+
+        Parameters
+        ----------
+        eigfunc : ndarray
+            KS orbital l1,n1
+        grad_orb2 : ndarray
+            derivative of KS orbital l2,n2
+        xgrid : ndarray
+            log grid
+
+        Returns
+        -------
+        R2_corr : float
+            the matrix element for the R2_corr_int_mat function
+        """
+        R2_corr = 4 * np.pi * xgrid**6 * eigfunc * grad_orb2
+
+        return R2_corr[-1]
+
+    @classmethod
+    def calc_R1_corr_mat(cls, eigfuncs, occnums, xgrid, orb_subset_1, orb_subset_2):
+        r"""
+        Compute the 'R1' integral matrix (see notes).
+
+        Parameters
+        ----------
+        eigfuncs : ndarray
+            the KS eigenfunctions
+        occnums : ndarray
+            the KS occupation numbers
+        xgrid : ndarray
+            the log grid
+        orb_subset_1 : tuple
+            the first subset of orbitals (eg valence)
+        orb_subset_2 : tuple
+            the second subset of orbitals (eg conduction)
+
+        Returns
+        -------
+        R1_mat : ndarray
+            the R1 integral matrix (see notes)
+
+        Notes
+        -----
+        The definition of the R1 integral is (see Ref. [7]_ and supplementary of [8]_)
+
+        .. math::
+            R^{(1)}=4\pi\int_0^R dr r X_{n_1 l_1}(r) X_{n_2 l_2}(r),
+
+        where :math:`X_{nl}(r)` are the radial KS functions.
+        """
+        # initiliaze the matrix
+        nbands, nspin, lmax, nmax = np.shape(occnums)
+        R1_mat = np.zeros((nbands, lmax, nmax, lmax, nmax), dtype=np.float32)
+
+        # integrate over the sphere
+        for l1, n1 in orb_subset_1:
+            for l2, n2 in orb_subset_2:
+                if abs(l1 - l2) != 1:
+                    continue
+                else:
+                    R1_mat[:, l1, n1, l2, n2] = cls.R1_corr_term(
+                        eigfuncs[:, 0, l1, n1], eigfuncs[:, 0, l2, n2], xgrid
+                    )
+
+                    if orb_subset_1 != orb_subset_2:
+                        R1_mat[:, l2, n2, l1, n1] = cls.R1_corr_term(
+                            eigfuncs[:, 0, l2, n2], eigfuncs[:, 0, l1, n1], xgrid
+                        )
+
+        return R1_mat
+
+    @staticmethod
+    def R1_corr_term(eigfunc_1, eigfunc_2, xgrid):
+        """
+        Input function to the :func:`calc_R1_corr_int_mat` function.
 
         Parameters
         ----------
@@ -1498,12 +1856,12 @@ class RadialIntsSqrt:
 
         Returns
         -------
-        R2_int : float
-            the matrix element for the R2_int_mat function
+        R1_corr_int : float
+            the matrix element for the R1_corr_int_mat function
         """
-        R2_int = 4 * np.pi * np.trapz(2 * xgrid**3 * eigfunc_1 * eigfunc_2, xgrid)
+        R1_corr = 4 * np.pi * xgrid**4 * eigfunc_1 * eigfunc_2
 
-        return R2_int
+        return R1_corr[:, -1]
 
     @staticmethod
     def calc_R1_int(orb1, orb2, xgrid):
