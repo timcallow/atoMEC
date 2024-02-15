@@ -344,107 +344,107 @@ Please run again with spin-unpolarized input."
 
     @property
     @functools.lru_cache
-    def R1_corr_int_tt(self):
+    def R1_corr_tt(self):
         """Total-total component of the R1 radial integral."""
-        R1_corr_int_tt_ = self.radial_integrator.calc_R1_corr_int_mat(
+        R1_corr_tt_ = self.radial_integrator.calc_R1_corr_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
             self.all_orbs,
             self.all_orbs,
         )
-        return R1_corr_int_tt_
+        return R1_corr_tt_
 
     @property
     @functools.lru_cache
-    def R1_corr_int_cc(self):
+    def R1_corr_cc(self):
         """Conducting-conducting component of the R1 radial integral."""
-        R1_corr_int_cc_ = self.radial_integrator.calc_R1_corr_int_mat(
+        R1_corr_cc_ = self.radial_integrator.calc_R1_corr_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
             self.cond_orbs,
             self.cond_orbs,
         )
-        return R1_corr_int_cc_
+        return R1_corr_cc_
 
     @property
     @functools.lru_cache
-    def R1_corr_int_cv(self):
+    def R1_corr_cv(self):
         """Conducting-valence component of the R1 radial integral."""
-        R1_corr_int_cv_ = self.radial_integrator.calc_R1_corr_int_mat(
+        R1_corr_cv_ = self.radial_integrator.calc_R1_corr_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
             self.cond_orbs,
             self.valence_orbs,
         )
-        return R1_corr_int_cv_
+        return R1_corr_cv_
 
     @property
     @functools.lru_cache
-    def R1_corr_int_vv(self):
+    def R1_corr_vv(self):
         """Valence-valence component of the R1 radial integral."""
-        R1_corr_int_vv_ = self.radial_integrator.calc_R1_corr_int_mat(
+        R1_corr_vv_ = self.radial_integrator.calc_R1_corr_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
             self.valence_orbs,
             self.valence_orbs,
         )
-        return R1_corr_int_vv_
+        return R1_corr_vv_
 
     @property
     @functools.lru_cache
-    def R2_corr_int_tt(self):
+    def R2_corr_tt(self):
         """Total-total component of the R2 radial integral."""
-        R2_corr_int_tt_ = self.radial_integrator.calc_R2_corr_int_mat(
+        R2_corr_tt_ = self.radial_integrator.calc_R2_corr_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
             self.all_orbs,
             self.all_orbs,
         )
-        return R2_corr_int_tt_
+        return R2_corr_tt_
 
     @property
     @functools.lru_cache
-    def R2_corr_int_cc(self):
+    def R2_corr_cc(self):
         """Conducting-conducting component of the R2 radial integral."""
-        R2_corr_int_cc_ = self.radial_integrator.calc_R2_corr_int_mat(
+        R2_corr_cc_ = self.radial_integrator.calc_R2_corr_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
             self.cond_orbs,
             self.cond_orbs,
         )
-        return R2_corr_int_cc_
+        return R2_corr_cc_
 
     @property
     @functools.lru_cache
-    def R2_corr_int_cv(self):
+    def R2_corr_cv(self):
         """Conducting-valence component of the R2 radial integral."""
-        R2_corr_int_cv_ = self.radial_integrator.calc_R2_corr_int_mat(
+        R2_corr_cv_ = self.radial_integrator.calc_R2_corr_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
             self.cond_orbs,
             self.valence_orbs,
         )
-        return R2_corr_int_cv_
+        return R2_corr_cv_
 
     @property
     @functools.lru_cache
-    def R2_corr_int_vv(self):
+    def R2_corr_vv(self):
         """Valence-valence component of the R2 radial integral."""
-        R2_corr_int_vv_ = self.radial_integrator.calc_R2_corr_int_mat(
+        R2_corr_vv_ = self.radial_integrator.calc_R2_corr_mat(
             self._eigfuncs,
             self._occnums,
             self._xgrid,
             self.valence_orbs,
             self.valence_orbs,
         )
-        return R2_corr_int_vv_
+        return R2_corr_vv_
 
     def check_sum_rule(self, l, n, m):
         r"""
