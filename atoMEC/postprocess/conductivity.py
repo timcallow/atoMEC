@@ -1699,7 +1699,7 @@ class RadialIntsSqrt:
         R1_int : float
             the matrix element for the R1_int_mat function
         """
-        R2_int = 4 * np.pi * np.trapz(2 * xgrid**2 * eigfunc_1 * eigfunc_2, xgrid)
+        R2_int = 4 * np.pi * np.trapz(2 * xgrid**3 * eigfunc_1 * eigfunc_2, xgrid)
 
         return R2_int
 
