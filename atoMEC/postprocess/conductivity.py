@@ -723,8 +723,8 @@ Please run again with spin-unpolarized input."
         tmp_mat_3 = np.einsum("kcdab,cae->kabcde", R1_int, P2_int)
         tmp_mat_4 = np.einsum("kcdab,cae->kabcde", R2_int, P4_int)
 
-        corr_mat = np.einsum("kabcd,ace->kabcde", R1_corr, Pcorr_int)
-        corr_mat_cc = np.einsum("kcdab,cae->kabcde", R1_corr, Pcorr_int)
+        corr_mat = -0.5 * np.einsum("kabcd,ace->kabcde", R1_corr, Pcorr_int)
+        corr_mat_cc = -0.5 * np.einsum("kcdab,cae->kabcde", R1_corr, Pcorr_int)
 
         # compute the sum over the matrix element |< phi_nlm | nabla | phi_pqm >|^2
         mel_sq_mat = np.sum(
