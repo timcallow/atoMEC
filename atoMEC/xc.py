@@ -21,7 +21,7 @@ Functions
 # standard libs
 
 # external libs
-import pylibxc
+#import pylibxc
 import numpy as np
 
 # internal libs
@@ -114,6 +114,7 @@ def check_xc_func(xc_code, id_supp):
 
     # make the libxc object functional
     else:
+        import pylibxc
         # checks if the libxc code is recognised
         try:
             xc_func = pylibxc.LibXCFunctional(xc_code, "unpolarized")
@@ -151,6 +152,7 @@ def set_xc_func(xc_code):
         xc_func = XCFunc(xc_code)
 
     else:
+        import pylibxc
         # whether the xc functional is spin polarized
         if config.spindims == 2:
             xc_func = pylibxc.LibXCFunctional(xc_code, "polarized")
