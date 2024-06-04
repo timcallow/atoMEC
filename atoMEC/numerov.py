@@ -299,7 +299,8 @@ class Solver:
         try:
             shutil.rmtree(joblib_folder)
         except:  # noqa
-            print("Could not clean-up automatically.")
+            #print("Could not clean-up automatically.")
+            os.system(" .'\'".join(["del", joblib_folder]))
 
         if solve_type == "full":
             # retrieve the eigfuncs and eigvals from the joblib output
